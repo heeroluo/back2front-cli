@@ -1,0 +1,30 @@
+{
+  "name": "back2front-cli",
+  "version": "1.0.0",
+  "description": "Command line interface for Back2Front",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heeroluo/back2front-cli.git"
+  },
+  "author": "Heero.Luo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/heeroluo/back2front-cli/issues"
+  },
+  "homepage": "https://github.com/heeroluo/back2front-cli#readme",
+  "dependencies": {
+    "glob": "^7.1.1",
+    "gulp": "^3.9.1",
+    "gulp-clean-css": "^2.2.2",
+    "gulp-filter": "^4.0.0",
+    "gulp-line-ending-corrector": "^1.0.1",
+    "gulp-modify": "^0.1.1",
+    "gulp-uglify": "^2.0.0",
+    "json-format": "^0.1.2",
+    "minimatch": "^3.0.3",
+    "minimist": "^1.2.0"
+  },
+  "bin": {
+    "back2front": "./bin/index.js"
+  }
+}
