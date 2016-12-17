@@ -182,9 +182,11 @@ gulp.task('build-assets', function() {
 		}) )
 		.pipe( gulpModify({
             fileModifier: function(file, content) {
-				file.path = util.convertExtname(file.path);
-				return 'cssFiles[' + toAssetPath(file) + ']=' +
+				var result = 'cssFiles[' + toAssetPath(file) + ']=' +
 					JSON.stringify(content) + ';';
+
+				file.path = util.convertExtname(file.path);
+				return result;
 			}
 		}) )
 		.pipe( cssFilter.restore )
