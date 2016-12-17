@@ -41,6 +41,15 @@ gulp.task('depa', function(callback) {
 });
 
 
+// 解析出可用的静态资源路径（URL前缀）
+var urlPrefixes = config.static_hosts.map(function(host) {
+	return util.parseVars(config.static_url, {
+		host: host,
+		rev: config.rev,
+		path: ''
+	});
+});
+
 // 静态资源构建
 gulp.task('build-assets', function() {
 	// 匹配CSS
@@ -78,9 +87,8 @@ gulp.task('build-assets', function() {
 		);
 	}
 
-	// 把CSS文件中的相对路径转换为绝对路径
-	// 总是使用静态资源域名的第二个（或第一个）
-	var cssRefHost = config.static_hosts.slice(-1)[0];
+	// 把CSS文件中的相对路径转换为绝对路径(总是使用最后一个静态资源路径)
+	var inCSSURLPrefix = urlPrefixes[urlPrefixes.length - 1];
 	function cssRel2Root(file, fn) {
 		return function(match, quot, origPath) {
 			if ( util.isURL(origPath) ) {
@@ -88,16 +96,12 @@ gulp.task('build-assets', function() {
 			} else {
 				return fn(
 					quot +
-					util.parseVars(config.static_url, {
-						host: cssRefHost,
-						rev: config.rev,
-						path: util.normalizeSlash(
-							path.relative(
-								file.base,
-								path.resolve(path.dirname(file.path), origPath)
-							)
+					inCSSURLPrefix + util.normalizeSlash(
+						path.relative(
+							file.base,
+							path.resolve(path.dirname(file.path), origPath)
 						)
-					}) +
+					) +
 					quot
 				);
 			}
@@ -120,12 +124,7 @@ gulp.task('build-assets', function() {
 					/^(\s*basePath\s*:\s*)(["']).*?\2/m,
 					function(match, $1) {
 						return $1 + JSON.stringify(
-							util.parseVars(config.static_url, {
-								// 总是使用静态资源域名的最后一个
-								host: config.static_hosts.slice(-1)[0],
-								rev: config.rev,
-								path: ''
-							})
+							urlPrefixes[1] || urlPrefixes[0]
 						);
 					}
 				)
@@ -178,7 +177,7 @@ gulp.task('build-assets', function() {
 			}
         }) )
 		.pipe( gulpCleanCSS({
-			compatibility: 'ie7',
+			compatibility: 'ie8',
 			aggressiveMerging: false
 		}) )
 		.pipe( gulpModify({
@@ -256,33 +255,21 @@ gulp.task('copy-others', function() {
 
 
 gulp.task('default', ['combine-assets', 'copy-others'], function() {
-	var allURLPrefixes = config.static_hosts.map(function(host) {
-		return util.parseVars(config.static_url, {
-			host: host,
-			rev: config.rev,
-			path: ''
-		});
-	});
+	
 
-	// 使用“域名总数-1”个静态资源域名引用CSS、JS资源
-	// 保留一个用于加载CSS文件引用的资源，以及页面中插入的图片等资源
-	var assetURLPrefixes = allURLPrefixes.slice(0, allURLPrefixes.length - 1);
-
+	// 使用第一个静态资源路径引用CSS、普通JS资源
+	// 使用第二个（或第一个）静态资源路径引用模块化JS资源
+	// 保留最后一个静态资源路径用于在CSS文件中引用资源以及在页面中引用内容资源
 	Object.keys(assetMap).forEach(function(tplRelPath) {
-		var tplAssets = assetMap[tplRelPath], counter = 0, i = -1;
-
-		Object.keys(tplAssets).forEach(function(assetType) {
-			tplAssets[assetType] = tplAssets[assetType].map(
-				function(assetPath) {
-					// 考虑浏览器并发数为4的情况，每4个资源换一次域名
-					if (counter % 4 === 0) {
-						i++;
-						if (i >= assetURLPrefixes.length) { i = 0; }
-					}
-					counter++;
-					return assetURLPrefixes[i] + assetPath;
-				}
-			);
+		var tplAssets = assetMap[tplRelPath];
+		tplAssets.css = tplAssets.css.map(function(p) {
+			return urlPrefixes[0] + p;
+		});
+		tplAssets.js = tplAssets.js.map(function(p) {
+			return urlPrefixes[0] + p;
+		});
+		tplAssets.modjs = tplAssets.modjs.map(function(p) {
+			return (urlPrefixes[1] || urlPrefixes[0]) + p;
 		});
 	});
 
@@ -290,7 +277,7 @@ gulp.task('default', ['combine-assets', 'copy-others'], function() {
 	fs.writeFileSync(
 		path.join(config.build_to.server, 'assets.json'),
 		jsonFormat({
-			url_prefix: allURLPrefixes.slice(-1)[0],
+			url_prefix: urlPrefixes.slice(-1)[0],
 			map: assetMap
 		}),
 		'utf8'
