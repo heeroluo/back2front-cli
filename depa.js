@@ -135,8 +135,13 @@ module.exports = function(pjPath, options, config) {
 
 			// 循环每一个依赖，递归获取依赖的依赖
 			deps.forEach(function(dep) {
+				// 当前版本不处理外链资源
+				if ( util.isURL(dep) ) { return; }
+
 				dep = getRelPath(dep, filePath, type);
+				// 自身
 				result.push(dep);
+				// 依赖
 				result = result.concat( t.parse(dep, type) );
 			});
 
@@ -179,9 +184,12 @@ module.exports = function(pjPath, options, config) {
 				assetType = match[1];
 				re_assetItem = /(["'])(.+?)\1/g;
 				while ( subMatch = re_assetItem.exec(match[2]) ) {
-					assetPath = getRelPath(
-						parsePath(subMatch[2]), filePath, assetType
-					);
+					assetPath = subMatch[2];
+					// 当前版本不处理外链资源
+					if ( util.isURL(assetPath) ) { continue; }
+
+					assetPath = getRelPath(parsePath(assetPath), filePath, assetType);
+
 					// 自身
 					result[assetType].push(assetPath);
 					// 依赖
