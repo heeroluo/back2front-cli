@@ -41,7 +41,10 @@ gulp.task('depa', function(callback) {
 });
 
 
-// 解析出可用的静态资源路径（URL前缀）
+// 解析出可用的静态资源路径
+// 使用第一个路径引用CSS、普通JS资源
+// 使用第二个（或第一个）路径引用模块化JS资源
+// 保留最后一个静态资源路径用于在CSS文件中引用资源以及在页面中引用内容资源
 var urlPrefixes = config.static_hosts.map(function(host) {
 	return util.parseVars(config.static_url, {
 		host: host,
@@ -257,11 +260,6 @@ gulp.task('copy-others', function() {
 
 
 gulp.task('default', ['combine-assets', 'copy-others'], function() {
-	
-
-	// 使用第一个静态资源路径引用CSS、普通JS资源
-	// 使用第二个（或第一个）静态资源路径引用模块化JS资源
-	// 保留最后一个静态资源路径用于在CSS文件中引用资源以及在页面中引用内容资源
 	Object.keys(assetMap).forEach(function(tplRelPath) {
 		var tplAssets = assetMap[tplRelPath];
 		tplAssets.css = tplAssets.css.map(function(p) {
@@ -277,7 +275,7 @@ gulp.task('default', ['combine-assets', 'copy-others'], function() {
 
 	// 保存最终的资源引用表
 	fs.writeFileSync(
-		path.join(config.build_to.server, 'assets.json'),
+		path.join(config.build_to.server, 'asset-config.json'),
 		jsonFormat({
 			url_prefix: urlPrefixes.slice(-1)[0],
 			map: assetMap
