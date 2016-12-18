@@ -31,11 +31,11 @@ function gulpDest(type) {
 }
 
 
-var depaResult;
+var depaMap;
 // 分析页面模板依赖
 gulp.task('depa', function(callback) {
 	depa(config.pjPath, null, buildingConfig).then(function(result) {
-		depaResult = result;
+		depaMap = result;
 		callback();
 	});
 });
@@ -46,12 +46,14 @@ gulp.task('depa', function(callback) {
 // 使用第二个（或第一个）路径引用模块化JS资源
 // 保留最后一个静态资源路径用于在CSS文件中引用资源以及在页面中引用内容资源
 var urlPrefixes = config.static_hosts.map(function(host) {
-	return util.parseVars(config.static_url, {
+	var result = util.parseVars(config.static_url_prefix, {
 		host: host,
-		rev: config.rev,
-		path: ''
+		rev: config.rev
 	});
+	if (result[result.length - 1] !== '/') { result += '/'; }
+	return result;
 });
+
 
 // 静态资源构建
 gulp.task('build-assets', function() {
@@ -228,7 +230,7 @@ var assetMap;
 // 资源合并
 gulp.task('combine-assets', ['depa', 'build-tpl', 'build-assets'], function(callback) {
 	assetMap = combiner.combine(
-		depaResult,
+		depaMap,
 		config.combine,
 		config.standalone,
 		config.build_to.static

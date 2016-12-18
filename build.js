@@ -83,8 +83,8 @@ module.exports = function(pjPath, options, rawConfig) {
 	// 选用对应环境的静态域名
 	actualConfig.static_hosts = rawConfig.static_hosts[env];
 
-	// 静态URL格式、单独文件规则无须解析
-	actualConfig.static_url = rawConfig.static_url;
+	// 静态资源URL前缀、单独文件规则无须解析
+	actualConfig.static_url_prefix = rawConfig.static_url_prefix;
 	actualConfig.standalone = rawConfig.standalone;
 
 	// 记录起来，以便在gulpfile.js中调用
