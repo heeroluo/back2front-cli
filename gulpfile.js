@@ -17,7 +17,9 @@ var path = require('path'),
 	util = require('./lib/util'),
 	depa = require('./depa'),
 	combiner = require('./lib/asset-combiner'),
-	config = global.buildingConfig;
+	minimist = require('minimist'),
+	argvs = require('minimist')( process.argv.slice(2) ),
+	config = JSON.parse(argvs.config);
 
 
 // 返回文件匹配规则
@@ -34,7 +36,7 @@ function gulpDest(type) {
 var depaMap;
 // 分析页面模板依赖
 gulp.task('depa', function(callback) {
-	depa(config.pjPath, null, buildingConfig).then(function(result) {
+	depa(config.pjPath, null, config).then(function(result) {
 		depaMap = result;
 		callback();
 	});

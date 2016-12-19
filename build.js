@@ -7,6 +7,7 @@
 
 var path = require('path'),
 	fs = require('fs'),
+	childProcess = require('child_process'),
 	util = require('./lib/util'),
 	errorExit = util.errorExit;
 
@@ -87,14 +88,24 @@ module.exports = function(pjPath, options, rawConfig) {
 	actualConfig.static_url_prefix = rawConfig.static_url_prefix;
 	actualConfig.standalone = rawConfig.standalone;
 
+	// 以子进程方式调用Gulp
+	childProcess.fork(require.resolve('gulp/bin/gulp'), [
+		'--gulpfile',
+		path.resolve(__dirname, './gulpfile.js'),
+		'--config',
+		JSON.stringify(actualConfig)
+	], {
+		cwd: __dirname
+	});
+
 	// 记录起来，以便在gulpfile.js中调用
-	global.buildingConfig = actualConfig;
+	// global.buildingConfig = actualConfig;
 
-	// 移除掉影响Gulp的参数
-	process.argv = process.argv.slice(0, 2);
+	// // 移除掉影响Gulp的参数
+	// process.argv = process.argv.slice(0, 2);
 
-	// 通过参数指定调用本工具的gulpfile.js，而非工作目录下的
-	process.argv.push( '--gulpfile', path.resolve(__dirname, './gulpfile.js') );
-	// 调用gulp命令的入口文件开始构建
-	require('gulp/bin/gulp');
+	// // 通过参数指定调用本工具的gulpfile.js，而非工作目录下的
+	// process.argv.push( '--gulpfile', path.resolve(__dirname, './gulpfile.js') );
+	// // 调用gulp命令的入口文件开始构建
+	// require('gulp/bin/gulp');
 };
