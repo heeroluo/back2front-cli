@@ -174,7 +174,7 @@ module.exports = function(pjPath, options, config) {
 				match,
 				subMatch;
 
-			var re_assetList = /(?:\{{2,3}|#)\s*(css|js|modjs)\s*\((.+?)\)/g,
+			var re_assetList = /\{{2,3}#?\s*(css|js|modjs)\s*\(\s*(.+?)\s*\)/g,
 				re_assetItem,
 				assetType,
 				assetPath;
@@ -207,8 +207,8 @@ module.exports = function(pjPath, options, config) {
 
 			while ( match = re_depTpl.exec(fileContent) ) {
 				isCSR = false;
-				depTpl = match[2].replace(/\?(.*)$/, function(match, $1) {
-					isCSR = $1.toLowerCase() === 'csr';
+				depTpl = match[2].replace(/\?(.*)$/, function(match, param) {
+					isCSR = /^csr(?:Only)?$/.test(param);
 					return '';
 				});
 				depTpl = getRelPath(depTpl, filePath, 'xtpl');
