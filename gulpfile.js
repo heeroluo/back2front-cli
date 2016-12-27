@@ -266,15 +266,21 @@ gulp.task('copy-others', function() {
 gulp.task('default', ['combine-assets', 'copy-others'], function() {
 	Object.keys(assetMap).forEach(function(tplRelPath) {
 		var tplAssets = assetMap[tplRelPath];
-		tplAssets.css = tplAssets.css.map(function(p) {
-			return urlPrefixes[0] + p;
-		});
-		tplAssets.js = tplAssets.js.map(function(p) {
-			return urlPrefixes[0] + p;
-		});
-		tplAssets.modjs = tplAssets.modjs.map(function(p) {
-			return (urlPrefixes[1] || urlPrefixes[0]) + p;
-		});
+		if (tplAssets.css) {
+			tplAssets.css = tplAssets.css.map(function(p) {
+				return urlPrefixes[0] + p;
+			});
+		}
+		if (tplAssets.js) {
+			tplAssets.js = tplAssets.js.map(function(p) {
+				return urlPrefixes[0] + p;
+			});
+		}
+		if (tplAssets.modjs) {
+			tplAssets.modjs = tplAssets.modjs.map(function(p) {
+				return (urlPrefixes[1] || urlPrefixes[0]) + p;
+			});
+		}
 	});
 
 	// 保存最终的资源引用表
