@@ -174,7 +174,7 @@ module.exports = function(pjPath, options, config) {
 				match,
 				subMatch;
 
-			var re_assetList = /\{{2,3}#?\s*(css|js|modjs)\s*\(\s*(.+?)\s*\)/g,
+			var re_assetList = /\{{2,3}#?\s*(css|js|modjs)\s*\(([\W\w]*?)\)/g,
 				re_assetItem,
 				assetType,
 				assetPath;
@@ -200,7 +200,7 @@ module.exports = function(pjPath, options, config) {
 			}
 
 			// 分析模板依赖
-			var re_depTpl = /\{{2,3}\s*(?:extend|parse|include|includeOnce)\s*\((['"])(.+?)\1/g,
+			var re_depTpl = /\{{2,3}\s*(?:extend|parse|include|includeOnce)\s*\(\s*(['"])(.+?)\1/g,
 				depTpl,
 				depResult,
 				isCSR;
