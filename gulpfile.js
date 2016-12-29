@@ -139,7 +139,11 @@ gulp.task('build-assets', function() {
 		}) )
 		.pipe( modjsConfigFilter.restore )
 		.pipe( jsFilter )
-		.pipe( gulpUglify() )
+		.pipe( gulpUglify({
+			mangle: { screw_ie8: false },
+			compress: { screw_ie8: false },
+			output: { screw_ie8: false }
+		}) )
 		.pipe( gulpModify({
             fileModifier: function(file, content) {
 				return 'jsFiles[' + toAssetPath(file) + ']=' +
@@ -159,7 +163,11 @@ gulp.task('build-assets', function() {
 				');';
 			}
         }) )
-		.pipe( gulpUglify() )
+		.pipe( gulpUglify({
+			mangle: { screw_ie8: false },
+			compress: { screw_ie8: false },
+			output: { screw_ie8: false }
+		}) )
 		.pipe( modjsFilter.restore )
 		.pipe( cssFilter )
 		.pipe( gulpModify({
