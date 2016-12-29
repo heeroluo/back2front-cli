@@ -25,7 +25,19 @@ module.exports = function(pjPath, options, config) {
 			: path.join(basePath, assetPath);
 
 		if ( !path.extname(assetPath) ) {
-			assetPath += '.' + (assetType === 'modjs' ? 'mod.js' : assetType);
+			assetPath += '.';
+			switch (assetType) {
+				case 'headjs':
+					assetPath += 'js';
+					break;
+		
+				case 'modjs':
+					assetPath += 'mod.js';
+					break;
+
+				default:
+					assetPath += assetType;
+			}
 		}
 
 		return util.normalizeSlash(
@@ -67,6 +79,11 @@ module.exports = function(pjPath, options, config) {
 
 	// 资源依赖分析器
 	var assetParsers = {
+		// 不在JS里面依赖其他JS，故无需分析
+		_headjs: {
+			parse: function() { return [ ]; }
+		},
+
 		// 只分析单个CSS的直接依赖，并进行缓存
 		_css: {
 			_cache: { },
@@ -167,6 +184,7 @@ module.exports = function(pjPath, options, config) {
 				fileContent = util.readFile(filePath),
 				result = {
 					tpl: [ ],
+					headjs: [ ],
 					css: [ ],
 					js: [ ],
 					modjs: [ ]
@@ -174,7 +192,7 @@ module.exports = function(pjPath, options, config) {
 				match,
 				subMatch;
 
-			var re_assetList = /\{{2,3}#?\s*(css|js|modjs)\s*\(([\W\w]*?)\)/g,
+			var re_assetList = /\{{2,3}#?\s*(headjs|css|js|modjs)\s*\(([\W\w]*?)\)/g,
 				re_assetItem,
 				assetType,
 				assetPath;

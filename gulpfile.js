@@ -274,21 +274,18 @@ gulp.task('copy-others', function() {
 gulp.task('default', ['combine-assets', 'copy-others'], function() {
 	Object.keys(assetMap).forEach(function(tplRelPath) {
 		var tplAssets = assetMap[tplRelPath];
-		if (tplAssets.css) {
-			tplAssets.css = tplAssets.css.map(function(p) {
-				return urlPrefixes[0] + p;
+		['headjs', 'css', 'js', 'modjs'].forEach(function(assetType, i) {
+			if (!tplAssets[assetType]) { return; }
+			tplAssets[assetType] = tplAssets[assetType].map(function(p) {
+				if ( !util.isURL(p) ) {
+					var urlPrefix;
+					if (i === 3) { urlPrefix = urlPrefixes[1]; }
+					urlPrefix = urlPrefix || urlPrefixes[0];
+					p = urlPrefix + p;
+				}
+				return p;
 			});
-		}
-		if (tplAssets.js) {
-			tplAssets.js = tplAssets.js.map(function(p) {
-				return urlPrefixes[0] + p;
-			});
-		}
-		if (tplAssets.modjs) {
-			tplAssets.modjs = tplAssets.modjs.map(function(p) {
-				return (urlPrefixes[1] || urlPrefixes[0]) + p;
-			});
-		}
+		});
 	});
 
 	// 保存最终的资源引用表
