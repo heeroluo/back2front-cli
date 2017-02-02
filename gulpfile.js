@@ -47,7 +47,7 @@ gulp.task('depa', function(callback) {
 // 使用第一个路径引用CSS、普通JS资源
 // 使用第二个（或第一个）路径引用模块化JS资源
 // 保留最后一个静态资源路径用于在CSS文件中引用资源以及在页面中引用内容资源
-var urlPrefixes = config.static_hosts.map(function(host) {
+var urlPrefixes = (config.static_hosts || ['']).map(function(host) {
 	var result = util.parseVars(config.static_url_prefix, {
 		host: host,
 		rev: config.rev

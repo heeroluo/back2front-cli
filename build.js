@@ -83,7 +83,9 @@ module.exports = function(pjPath, options, rawConfig) {
 	});
 
 	// 选用对应环境的静态域名
-	actualConfig.static_hosts = rawConfig.static_hosts[env];
+	if (rawConfig.static_hosts) {
+		actualConfig.static_hosts = rawConfig.static_hosts[env];
+	}
 
 	// 静态资源URL前缀、单独文件规则无须解析
 	actualConfig.static_url_prefix = rawConfig.static_url_prefix;
