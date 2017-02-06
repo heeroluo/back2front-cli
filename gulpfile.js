@@ -67,20 +67,20 @@ gulp.task('build-assets', function() {
 	});
 	// 匹配普通JS
 	var jsFilter = gulpFilter(function(file) {
-		return path.extname(file.path).toLowerCase() === '.js' &&
-			!/\.mod\.js$/i.test(file.path);
+		return /\.raw\.js$/i.test(file.path);
 	}, {
 		restore: true
 	});
 	// 匹配模块化JS
 	var modjsFilter = gulpFilter(function(file) {
-		return /\.mod\.js$/i.test(file.path);
+		return path.extname(file.path).toLowerCase() === '.js' &&
+			!/\.raw\.js$/i.test(file.path);
 	}, {
 		restore: true
 	});
 	// 匹配模块化配置
 	var modjsConfigFilter = gulpFilter(function(file) {
-		return path.basename(file.path) === 'bowl-config.js';
+		return path.basename(file.path) === 'bowl-config.raw.js';
 	}, {
 		restore: true
 	});
@@ -120,7 +120,7 @@ gulp.task('build-assets', function() {
 			srcGlobs('static', '**/*'),
 			'!' + srcGlobs('static', '**/*.xtpl'),
 			'!' + srcGlobs('static', '**/*.xtpl.js'),
-			'!' + srcGlobs('static', '**/*.mod.defined.js')
+			'!' + srcGlobs('static', '**/*.defined.js')
 		])
 		.pipe( gulpLEC() )
 		.pipe( modjsConfigFilter )
@@ -260,7 +260,7 @@ gulp.task('copy-others', function() {
 		.src([
 			srcGlobs('server', '**/*'),
 			'!' + srcGlobs('server', 'node_modules/**'),
-			'!' + srcGlobs('server', '**/*.mod.defined.js'),
+			'!' + srcGlobs('server', '**/*.defined.js'),
 			'!' + srcGlobs('server', '**/*.xtpl.js'),
 			'!' + srcGlobs('server', '**/*.log')
 		])

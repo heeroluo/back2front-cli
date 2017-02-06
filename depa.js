@@ -28,11 +28,12 @@ module.exports = function(pjPath, options, config) {
 			assetPath += '.';
 			switch (assetType) {
 				case 'headjs':
-					assetPath += 'js';
+				case 'js':
+					assetPath += 'raw.js';
 					break;
 		
 				case 'modjs':
-					assetPath += 'mod.js';
+					assetPath += 'js';
 					break;
 
 				default:
