@@ -57,8 +57,31 @@ var urlPrefixes = (config.static_hosts || ['']).map(function(host) {
 });
 
 
+// 匹配纯文本文件的过滤器
+function createPlainTextFilter() {
+	return gulpFilter(function(file) {
+		return [
+			'html',
+			'css',
+			'js',
+			'json',
+			'txt',
+			'md',
+			'log',
+			''
+		].indexOf(
+			path.extname(file.path).toLowerCase()
+		) !== -1;
+	}, {
+		restore: true
+	});
+}
+
+
 // 静态资源构建
 gulp.task('build-assets', function() {
+	var plainTextFilter = createPlainTextFilter();
+
 	// 匹配CSS
 	var cssFilter = gulpFilter(function(file) {
 		return path.extname(file.path).toLowerCase() === '.css';
@@ -122,7 +145,9 @@ gulp.task('build-assets', function() {
 			'!' + srcGlobs('static', '**/*.xtpl.js'),
 			'!' + srcGlobs('static', '**/*.defined.js')
 		])
+		.pipe( plainTextFilter )
 		.pipe( gulpLEC() )
+		.pipe( plainTextFilter.restore )
 		.pipe( modjsConfigFilter )
 		.pipe( gulpModify({
             fileModifier: function(file, content) {
@@ -251,11 +276,7 @@ gulp.task('combine-assets', ['depa', 'build-tpl', 'build-assets'], function(call
 
 // 复制其余文件到目标目录
 gulp.task('copy-others', function() {
-	var noBinFilter = gulpFilter(function(file) {
-		// 过滤出非二进制
-		return !/\.(?:ico|jpg|png|gif|swf)$/i.test(file.path);
-	}, { restore: true });
-
+	var plainTextFilter = createPlainTextFilter();
 	return gulp
 		.src([
 			srcGlobs('server', '**/*'),
@@ -264,9 +285,9 @@ gulp.task('copy-others', function() {
 			'!' + srcGlobs('server', '**/*.xtpl.js'),
 			'!' + srcGlobs('server', '**/*.log')
 		])
-		.pipe( noBinFilter )
+		.pipe( plainTextFilter )
 		.pipe( gulpLEC() )
-		.pipe( noBinFilter.restore )
+		.pipe( plainTextFilter.restore )
 		.pipe( gulpDest('server') );
 });
 
