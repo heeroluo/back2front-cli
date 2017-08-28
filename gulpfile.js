@@ -12,6 +12,7 @@ var path = require('path'),
 	gulpLEC = require('gulp-line-ending-corrector'),
 	gulpModify = require('gulp-modify'),
 	gulpCleanCSS = require('gulp-clean-css'),
+	pump = require('pump'),
 	gulpUglify = require('gulp-uglify'),
 	jsonFormat = require('json-format'),
 	util = require('./lib/util'),
@@ -79,7 +80,7 @@ function createPlainTextFilter() {
 
 
 // 静态资源构建
-gulp.task('build-assets', function() {
+gulp.task('build-assets', function(cb) {
 	var plainTextFilter = createPlainTextFilter();
 
 	// 匹配CSS
@@ -138,18 +139,18 @@ gulp.task('build-assets', function() {
 		};
 	}
 
-	return gulp
-		.src([
+	pump([
+		gulp.src([
 			srcGlobs('static', '**/*'),
 			'!' + srcGlobs('static', '**/*.xtpl'),
 			'!' + srcGlobs('static', '**/*.xtpl.js'),
 			'!' + srcGlobs('static', '**/*.defined.js')
-		])
-		.pipe( plainTextFilter )
-		.pipe( gulpLEC() )
-		.pipe( plainTextFilter.restore )
-		.pipe( modjsConfigFilter )
-		.pipe( gulpModify({
+		]),
+		plainTextFilter,
+		gulpLEC(),
+		plainTextFilter.restore,
+		modjsConfigFilter,
+		gulpModify({
             fileModifier: function(file, content) {
 				// 替换加载器basePath的值
 				return content.replace(
@@ -161,23 +162,19 @@ gulp.task('build-assets', function() {
 					}
 				)
 			}
-		}) )
-		.pipe( modjsConfigFilter.restore )
-		.pipe( jsFilter )
-		.pipe( gulpUglify({
-			mangle: { screw_ie8: false },
-			compress: { screw_ie8: false },
-			output: { screw_ie8: false }
-		}) )
-		.pipe( gulpModify({
+		}),
+		modjsConfigFilter.restore,
+		jsFilter,
+		gulpUglify({ ie8: true }),
+		gulpModify({
             fileModifier: function(file, content) {
 				return 'jsFiles[' + toAssetPath(file) + ']=' +
 					'function(window) {' + content + '};';
 			}
-		}) )
-		.pipe( jsFilter.restore )
-		.pipe( modjsFilter )
-		.pipe( gulpModify({
+		}),
+		jsFilter.restore,
+		modjsFilter,
+		gulpModify({
             fileModifier: function(file, content) {
 				return 'define(' +
 					toAssetPath(file) + ',' +
@@ -187,15 +184,11 @@ gulp.task('build-assets', function() {
 					'}' +
 				');';
 			}
-        }) )
-		.pipe( gulpUglify({
-			mangle: { screw_ie8: false },
-			compress: { screw_ie8: false },
-			output: { screw_ie8: false }
-		}) )
-		.pipe( modjsFilter.restore )
-		.pipe( cssFilter )
-		.pipe( gulpModify({
+		}),
+		gulpUglify({ ie8: true }),
+		modjsFilter.restore,
+		cssFilter,
+		gulpModify({
 			// 相对路径转成绝对路径
             fileModifier: function(file, content) {
 				return content
@@ -215,12 +208,12 @@ gulp.task('build-assets', function() {
 						)
 					);
 			}
-        }) )
-		.pipe( gulpCleanCSS({
+		}),
+		gulpCleanCSS({
 			compatibility: 'ie8',
 			aggressiveMerging: false
-		}) )
-		.pipe( gulpModify({
+		}),
+		gulpModify({
             fileModifier: function(file, content) {
 				var result = 'cssFiles[' + toAssetPath(file) + ']=' +
 					JSON.stringify(content) + ';';
@@ -228,9 +221,10 @@ gulp.task('build-assets', function() {
 				file.path = util.convertExtname(file.path);
 				return result;
 			}
-		}) )
-		.pipe( cssFilter.restore )
-		.pipe( gulpDest('static') )
+		}),
+		cssFilter.restore,
+		gulpDest('static')
+	], cb);
 });
 
 

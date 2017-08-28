@@ -1,6 +1,6 @@
 {
   "name": "back2front-cli",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Command line tools for Back2Front",
   "keywords": [
     "back2front",
@@ -34,10 +34,11 @@
     "gulp-filter": "^4.0.0",
     "gulp-line-ending-corrector": "^1.0.1",
     "gulp-modify": "^0.1.1",
-    "gulp-uglify": "^2.0.0",
+    "gulp-uglify": "^3.0.0",
     "json-format": "^0.1.2",
     "minimatch": "^3.0.3",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.0",
+    "pump": "^1.0.2"
   },
   "engines": {
     "node": ">=4.0.0"
