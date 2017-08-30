@@ -9,7 +9,7 @@
 
 var path = require('path'),
 	fs = require('fs'),
-	argvs = require('minimist')( process.argv.slice(2) ),
+	argvs = require('minimist')(process.argv.slice(2)),
 	jsonFormat = require('json-format'),
 	errorExit = require('../lib/util').errorExit;
 
@@ -56,7 +56,7 @@ if ( !fs.existsSync(configPath) ) {
 }
 
 
-var result = fn( pjPath, argvs, require(configPath) );
+var result = fn(pjPath, argvs, require(configPath));
 
 // 输出依赖分析结果
 if (argvs._[0] === 'depa') {

@@ -53,8 +53,8 @@ module.exports = function(pjPath, options, rawConfig) {
 			}
 			rev = date + '-' + (i++);
 		} while (
-			fs.existsSync( util.parseVars(buildTo.server, { rev: rev, env: env }) ) ||
-			fs.existsSync( util.parseVars(buildTo.static, { rev: rev, env: env }) )
+			fs.existsSync(util.parseVars(buildTo.server, { rev: rev, env: env })) ||
+			fs.existsSync(util.parseVars(buildTo.static, { rev: rev, env: env }))
 		);
 	}
 	// 解析出发布路径
@@ -89,7 +89,7 @@ module.exports = function(pjPath, options, rawConfig) {
 
 	// 静态资源URL前缀、单独文件规则无须解析
 	actualConfig.static_url_prefix = rawConfig.static_url_prefix;
-	actualConfig.standalone = rawConfig.standalone;
+	actualConfig.standalone = rawConfig.standalone.slice();
 
 	// 以子进程方式调用Gulp
 	childProcess.fork(require.resolve('gulp/bin/gulp'), [
@@ -100,15 +100,4 @@ module.exports = function(pjPath, options, rawConfig) {
 	], {
 		cwd: __dirname
 	});
-
-	// 记录起来，以便在gulpfile.js中调用
-	// global.buildingConfig = actualConfig;
-
-	// // 移除掉影响Gulp的参数
-	// process.argv = process.argv.slice(0, 2);
-
-	// // 通过参数指定调用本工具的gulpfile.js，而非工作目录下的
-	// process.argv.push( '--gulpfile', path.resolve(__dirname, './gulpfile.js') );
-	// // 调用gulp命令的入口文件开始构建
-	// require('gulp/bin/gulp');
 };

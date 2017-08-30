@@ -9,6 +9,7 @@ var path = require('path'),
 	fs = require('fs'),
 	gulp = require('gulp'),
 	gulpFilter = require('gulp-filter'),
+	gulpMD5 = require('./lib/gulp-md5-export'),
 	gulpLEC = require('gulp-line-ending-corrector'),
 	gulpModify = require('gulp-modify'),
 	gulpCleanCSS = require('gulp-clean-css'),
@@ -19,7 +20,7 @@ var path = require('path'),
 	depa = require('./depa'),
 	combiner = require('./lib/asset-combiner'),
 	minimist = require('minimist'),
-	argvs = require('minimist')( process.argv.slice(2) ),
+	argvs = require('minimist')(process.argv.slice(2)),
 	config = JSON.parse(argvs.config);
 
 
@@ -286,30 +287,52 @@ gulp.task('copy-others', function() {
 });
 
 
-gulp.task('default', ['combine-assets', 'copy-others'], function() {
-	Object.keys(assetMap).forEach(function(tplRelPath) {
-		var tplAssets = assetMap[tplRelPath];
-		['headjs', 'css', 'js', 'modjs'].forEach(function(assetType, i) {
-			if (!tplAssets[assetType]) { return; }
-			tplAssets[assetType] = tplAssets[assetType].map(function(p) {
-				if ( !util.isURL(p) ) {
-					var urlPrefix;
-					if (i === 3) { urlPrefix = urlPrefixes[1]; }
-					urlPrefix = urlPrefix || urlPrefixes[0];
-					p = urlPrefix + p;
-				}
-				return p;
-			});
-		});
-	});
+// gulp.task('default', ['combine-assets', 'copy-others'], function() {
+// 	Object.keys(assetMap).forEach(function(tplRelPath) {
+// 		var tplAssets = assetMap[tplRelPath];
+// 		['headjs', 'css', 'js', 'modjs'].forEach(function(assetType, i) {
+// 			if (!tplAssets[assetType]) { return; }
+// 			tplAssets[assetType] = tplAssets[assetType].map(function(p) {
+// 				if ( !util.isURL(p) ) {
+// 					var urlPrefix;
+// 					if (i === 3) { urlPrefix = urlPrefixes[1]; }
+// 					urlPrefix = urlPrefix || urlPrefixes[0];
+// 					p = urlPrefix + p;
+// 				}
+// 				return p;
+// 			});
+// 		});
+// 	});
 
-	// 保存最终的资源引用表
-	fs.writeFileSync(
-		path.join(config.build_to.server, 'asset-config.json'),
-		jsonFormat({
-			url_prefix: urlPrefixes.slice(-1)[0],
-			map: assetMap
-		}),
-		'utf8'
-	);
+// 	// 保存最终的资源引用表
+// 	fs.writeFileSync(
+// 		path.join(config.build_to.server, 'asset-config.json'),
+// 		jsonFormat({
+// 			url_prefix: urlPrefixes.slice(-1)[0],
+// 			map: assetMap
+// 		}),
+// 		'utf8'
+// 	);
+// });
+
+
+var md5Map = { };
+
+
+gulp.task('md5-others', function() {
+	return pump([
+		gulp.src([
+			srcGlobs('static', '**/*'),
+		]),
+		gulpMD5({
+			exportMap: function(src, md5) {
+				md5Map[src] = md5;
+			}
+		})
+	]);
+});
+
+gulp.task('default', ['md5-others'], function() {
+	console.log('Done.');
+	console.dir(md5Map);
 });
