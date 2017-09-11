@@ -80,180 +80,183 @@ function createPlainTextFilter() {
 }
 
 
-// 静态资源构建
-gulp.task('build-assets', function(cb) {
-	var plainTextFilter = createPlainTextFilter();
-
-	// 匹配CSS
-	var cssFilter = gulpFilter(function(file) {
-		return path.extname(file.path).toLowerCase() === '.css';
-	}, {
-		restore: true
-	});
-	// 匹配普通JS
-	var jsFilter = gulpFilter(function(file) {
-		return /\.raw\.js$/i.test(file.path);
-	}, {
-		restore: true
-	});
-	// 匹配模块化JS
-	var modjsFilter = gulpFilter(function(file) {
-		return path.extname(file.path).toLowerCase() === '.js' &&
-			!/\.raw\.js$/i.test(file.path);
-	}, {
-		restore: true
-	});
-	// 匹配模块化配置
-	var modjsConfigFilter = gulpFilter(function(file) {
-		return path.basename(file.path) === 'bowl-config.raw.js';
-	}, {
-		restore: true
-	});
-
-	// 转换为资源引用路径
-	function toAssetPath(file) {
-		return JSON.stringify(
-			util.normalizeSlash(
-				path.relative(file.base, file.path)
-			)
-		);
-	}
-
-	// 把CSS文件中的相对路径转换为绝对路径(总是使用最后一个静态资源路径)
-	var inCSSURLPrefix = urlPrefixes[urlPrefixes.length - 1];
-	function cssRel2Root(file, fn) {
-		return function(match, quot, origPath) {
-			if ( util.isURL(origPath) ) {
-				return match;
-			} else {
-				return fn(
-					quot +
-					inCSSURLPrefix + util.normalizeSlash(
-						path.relative(
-							file.base,
-							path.resolve(path.dirname(file.path), origPath)
-						)
-					) +
-					quot
-				);
-			}
-		};
-	}
-
-	pump([
-		gulp.src([
-			srcGlobs('static', '**/*'),
-			'!' + srcGlobs('static', '**/*.xtpl'),
-			'!' + srcGlobs('static', '**/*.xtpl.js'),
-			'!' + srcGlobs('static', '**/*.defined.js')
-		]),
-		plainTextFilter,
-		gulpLEC(),
-		plainTextFilter.restore,
-		modjsConfigFilter,
-		gulpModify({
-            fileModifier: function(file, content) {
-				// 替换加载器basePath的值
-				return content.replace(
-					/^(\s*basePath\s*:\s*)(["']).*?\2/m,
-					function(match, $1) {
-						return $1 + JSON.stringify(
-							urlPrefixes[1] || urlPrefixes[0]
-						);
-					}
-				)
-			}
-		}),
-		modjsConfigFilter.restore,
-		jsFilter,
-		gulpUglify({ ie8: true }),
-		gulpModify({
-            fileModifier: function(file, content) {
-				return 'jsFiles[' + toAssetPath(file) + ']=' +
-					'function(window) {' + content + '};';
-			}
-		}),
-		jsFilter.restore,
-		modjsFilter,
-		gulpModify({
-            fileModifier: function(file, content) {
-				return 'define(' +
-					toAssetPath(file) + ',' +
-					'null,' +
-					'function(require, exports, module) { "use strict";' +
-						content +
-					'}' +
-				');';
-			}
-		}),
-		gulpUglify({ ie8: true }),
-		modjsFilter.restore,
-		cssFilter,
-		gulpModify({
-			// 相对路径转成绝对路径
-            fileModifier: function(file, content) {
-				return content
-					.replace(/^\s*@import\s+.*$/m, '')
-					.replace(
-						/\burl\((['"]?)(.+?)\1\)/g,
-						cssRel2Root(
-							file,
-							function(result) { return 'url(' + result + ')'; }
-						)
-					)
-					.replace(
-						/\bsrc=(['"]?)(.+?)\1/g,
-						cssRel2Root(
-							file,
-							function(result) { return 'src=' + result; }
-						)
-					);
-			}
-		}),
-		gulpCleanCSS({
-			compatibility: 'ie8',
-			aggressiveMerging: false
-		}),
-		gulpModify({
-            fileModifier: function(file, content) {
-				var result = 'cssFiles[' + toAssetPath(file) + ']=' +
-					JSON.stringify(content) + ';';
-
-				file.path = util.convertExtname(file.path);
-				return result;
-			}
-		}),
-		cssFilter.restore,
-		gulpDest('static')
-	], cb);
-});
-
-
-// 构建模板（转成模块化）
-gulp.task('build-tpl', function() {
-	return gulp
-		.src( srcGlobs('static', '**/*.xtpl') )
-		.pipe( gulpLEC() )
-		.pipe(
-			gulpModify({
-            	fileModifier: function(file, content) {
-					file.path = util.convertExtname(file.path);
-					return 'define(' +
-						JSON.stringify(
-							util.normalizeSlash(
-								path.relative(file.base, file.path)
-							)
-						 ) + ',' +
-						'null,' +
-						'function(require, exports, module) {' +
-							'module.exports=' + JSON.stringify(content) +
-						'}' +
-					');';
-				}
-			})
+// 转换为资源引用路径
+function toAssetPath(file) {
+	return JSON.stringify(
+		util.normalizeSlash(
+			path.relative(file.base, file.path)
 		)
-		.pipe( gulpDest('static') );
-});
+	);
+}
+
+
+// 静态资源构建
+// gulp.task('build-assets', function(cb) {
+// 	var plainTextFilter = createPlainTextFilter();
+
+// 	// 匹配CSS
+// 	var cssFilter = gulpFilter(function(file) {
+// 		return path.extname(file.path).toLowerCase() === '.css';
+// 	}, {
+// 		restore: true
+// 	});
+// 	// 匹配普通JS
+// 	var jsFilter = gulpFilter(function(file) {
+// 		return /\.raw\.js$/i.test(file.path);
+// 	}, {
+// 		restore: true
+// 	});
+// 	// 匹配模块化JS
+// 	var modjsFilter = gulpFilter(function(file) {
+// 		return path.extname(file.path).toLowerCase() === '.js' &&
+// 			!/\.raw\.js$/i.test(file.path);
+// 	}, {
+// 		restore: true
+// 	});
+// 	// 匹配模块化配置
+// 	var modjsConfigFilter = gulpFilter(function(file) {
+// 		return path.basename(file.path) === 'bowl-config.raw.js';
+// 	}, {
+// 		restore: true
+// 	});
+
+	
+
+// 	// 把CSS文件中的相对路径转换为绝对路径(总是使用最后一个静态资源路径)
+// 	var inCSSURLPrefix = urlPrefixes[urlPrefixes.length - 1];
+// 	function cssRel2Root(file, fn) {
+// 		return function(match, quot, origPath) {
+// 			if ( util.isURL(origPath) ) {
+// 				return match;
+// 			} else {
+// 				return fn(
+// 					quot +
+// 					inCSSURLPrefix + util.normalizeSlash(
+// 						path.relative(
+// 							file.base,
+// 							path.resolve(path.dirname(file.path), origPath)
+// 						)
+// 					) +
+// 					quot
+// 				);
+// 			}
+// 		};
+// 	}
+
+// 	pump([
+// 		gulp.src([
+// 			srcGlobs('static', '**/*'),
+// 			'!' + srcGlobs('static', '**/*.xtpl'),
+// 			'!' + srcGlobs('static', '**/*.xtpl.js'),
+// 			'!' + srcGlobs('static', '**/*.defined.js')
+// 		]),
+// 		plainTextFilter,
+// 		gulpLEC(),
+// 		plainTextFilter.restore,
+// 		modjsConfigFilter,
+// 		gulpModify({
+//             fileModifier: function(file, content) {
+// 				// 替换加载器basePath的值
+// 				return content.replace(
+// 					/^(\s*basePath\s*:\s*)(["']).*?\2/m,
+// 					function(match, $1) {
+// 						return $1 + JSON.stringify(
+// 							urlPrefixes[1] || urlPrefixes[0]
+// 						);
+// 					}
+// 				)
+// 			}
+// 		}),
+// 		modjsConfigFilter.restore,
+// 		jsFilter,
+// 		gulpUglify({ ie8: true }),
+// 		gulpModify({
+//             fileModifier: function(file, content) {
+// 				return 'jsFiles[' + toAssetPath(file) + ']=' +
+// 					'function(window) {' + content + '};';
+// 			}
+// 		}),
+// 		jsFilter.restore,
+// 		modjsFilter,
+// 		gulpModify({
+//             fileModifier: function(file, content) {
+// 				return 'define(' +
+// 					toAssetPath(file) + ',' +
+// 					'null,' +
+// 					'function(require, exports, module) { "use strict";' +
+// 						content +
+// 					'}' +
+// 				');';
+// 			}
+// 		}),
+// 		gulpUglify({ ie8: true }),
+// 		modjsFilter.restore,
+// 		cssFilter,
+// 		gulpModify({
+// 			// 相对路径转成绝对路径
+//             fileModifier: function(file, content) {
+// 				return content
+// 					.replace(/^\s*@import\s+.*$/m, '')
+// 					.replace(
+// 						/\burl\((['"]?)(.+?)\1\)/g,
+// 						cssRel2Root(
+// 							file,
+// 							function(result) { return 'url(' + result + ')'; }
+// 						)
+// 					)
+// 					.replace(
+// 						/\bsrc=(['"]?)(.+?)\1/g,
+// 						cssRel2Root(
+// 							file,
+// 							function(result) { return 'src=' + result; }
+// 						)
+// 					);
+// 			}
+// 		}),
+// 		gulpCleanCSS({
+// 			compatibility: 'ie8',
+// 			aggressiveMerging: false
+// 		}),
+// 		gulpModify({
+//             fileModifier: function(file, content) {
+// 				var result = 'cssFiles[' + toAssetPath(file) + ']=' +
+// 					JSON.stringify(content) + ';';
+
+// 				file.path = util.convertExtname(file.path);
+// 				return result;
+// 			}
+// 		}),
+// 		cssFilter.restore,
+// 		gulpDest('static')
+// 	], cb);
+// });
+
+
+// // 构建模板（转成模块化）
+// gulp.task('build-tpl', function() {
+// 	return gulp
+// 		.src( srcGlobs('static', '**/*.xtpl') )
+// 		.pipe( gulpLEC() )
+// 		.pipe(
+// 			gulpModify({
+//             	fileModifier: function(file, content) {
+// 					file.path = util.convertExtname(file.path);
+// 					return 'define(' +
+// 						JSON.stringify(
+// 							util.normalizeSlash(
+// 								path.relative(file.base, file.path)
+// 							)
+// 						 ) + ',' +
+// 						'null,' +
+// 						'function(require, exports, module) {' +
+// 							'module.exports=' + JSON.stringify(content) +
+// 						'}' +
+// 					');';
+// 				}
+// 			})
+// 		)
+// 		.pipe( gulpDest('static') );
+// });
 
 
 var assetMap;
@@ -269,22 +272,7 @@ gulp.task('combine-assets', ['depa', 'build-tpl', 'build-assets'], function(call
 });
 
 
-// 复制其余文件到目标目录
-gulp.task('copy-others', function() {
-	var plainTextFilter = createPlainTextFilter();
-	return gulp
-		.src([
-			srcGlobs('server', '**/*'),
-			'!' + srcGlobs('server', 'node_modules/**'),
-			'!' + srcGlobs('server', '**/*.defined.js'),
-			'!' + srcGlobs('server', '**/*.xtpl.js'),
-			'!' + srcGlobs('server', '**/*.log')
-		])
-		.pipe( plainTextFilter )
-		.pipe( gulpLEC() )
-		.pipe( plainTextFilter.restore )
-		.pipe( gulpDest('server') );
-});
+
 
 
 // gulp.task('default', ['combine-assets', 'copy-others'], function() {
@@ -316,14 +304,194 @@ gulp.task('copy-others', function() {
 // });
 
 
+// 存放所有文件的MD5映射
 var md5Map = { };
 
 
+// 非代码文件加MD5戳
 gulp.task('md5-others', function() {
+	var plainTextFilter = createPlainTextFilter();
 	return pump([
 		gulp.src([
 			srcGlobs('static', '**/*'),
+			'!' + srcGlobs('static', '**/*.js'),
+			'!' + srcGlobs('static', '**/*.css'),
+			'!' + srcGlobs('static', '**/*.xtpl'),
+			'!' + srcGlobs('static', '**/*.html')
 		]),
+		plainTextFilter,
+		gulpLEC(),
+		plainTextFilter.restore,
+		gulpMD5({
+			exportMap: function(src, md5) {
+				md5Map[src] = md5;
+			}
+		}),
+		gulpDest('static')
+	]);
+});
+
+
+// CSS构建
+gulp.task('build-styles', ['md5-others'], function() {
+	// 把CSS文件中的相对路径转换为绝对路径(总是使用最后一个静态资源路径)
+	var inCSSURLPrefix = urlPrefixes[urlPrefixes.length - 1];
+
+	function cssRel2Root(file, fn) {
+		return function(match, quot, origPath) {
+			if (util.isURL(origPath) || util.isBase64(origPath)) {
+				// 不对URL或Base64编码做处理
+				return match;
+			} else {
+				// 计算出相对项目根目录的路径
+				var relPath = util.normalizeSlash(
+					path.relative(
+						file.base,
+						path.resolve(path.dirname(file.path), origPath)
+					)
+				);
+
+				return fn(
+					quot +
+					inCSSURLPrefix +
+					(md5Map[relPath] || relPath) +
+					quot
+				);
+			}
+		};
+	}
+
+	return pump([
+		gulp.src(srcGlobs('static', '**/*.css')),
+		gulpModify({
+			// 相对路径转成绝对路径
+            fileModifier: function(file, content) {
+				return content
+					// 移除CSS的import语句，因为分析依赖的时候已经把import的文件提取出来
+					.replace(/^\s*@import\s+.*$/m, '')
+					// 替换 url(...) 中的路径
+					.replace(
+						/\burl\((['"]?)(.+?)\1\)/g,
+						cssRel2Root(file, function(result) {
+							console.log(result);
+							return 'url(' + result + ')';
+						})
+					);
+			}
+		}),
+		gulpCleanCSS({
+			compatibility: 'ie8',
+			aggressiveMerging: false
+		}),
+		gulpModify({
+            fileModifier: function(file, content) {
+				var assetPath = toAssetPath(file);
+				var result = 'cssFiles[' + assetPath + ']=' + JSON.stringify(content) + ';';
+				file.path = util.convertExtname(file.path);
+				return result;
+			}
+		}),
+		gulpMD5({
+			exportMap: function(src, md5) {
+				md5Map[util.revertExtname(src)] = md5;
+			}
+		}),
+		gulpDest('static')
+	]);
+});
+
+
+// 构建模板（转成模块化js）
+gulp.task('build-tpl', function() {
+	return pump([
+		gulp.src(srcGlobs('static', '**/*.xtpl')),
+		gulpLEC(),
+		gulpModify({
+			fileModifier: function(file, content) {
+				file.path = util.convertExtname(file.path);
+				return 'define(' +
+					JSON.stringify(
+						util.normalizeSlash(
+							path.relative(file.base, file.path)
+						)
+					) + ',' +
+					'null,' +
+					'function(require, exports, module) {' +
+						'module.exports=' + JSON.stringify(content) +
+					'}' +
+				');';
+			}
+		}),
+		gulpMD5({
+			exportMap: function(src, md5) {
+				md5Map[util.revertExtname(src)] = md5;
+			}
+		}),
+		gulpDest('static')
+	]);
+});
+
+
+gulp.task('build-js', function() {
+	// 匹配普通JS
+	var jsFilter = gulpFilter(function(file) {
+		return /\.raw\.js$/i.test(file.path);
+	}, {
+		restore: true
+	});
+	// 匹配模块化JS
+	var modjsFilter = gulpFilter(function(file) {
+		return path.extname(file.path).toLowerCase() === '.js' &&
+			!/\.raw\.js$/i.test(file.path);
+	}, {
+		restore: true
+	});
+	// 匹配模块化配置
+	var modjsConfigFilter = gulpFilter(function(file) {
+		return path.basename(file.path) === 'bowl-config.raw.js';
+	}, {
+		restore: true
+	});
+
+	return pump([
+		gulp.src(srcGlobs('static', '**/*.js')),
+		modjsConfigFilter,
+		gulpModify({
+            fileModifier: function(file, content) {
+				// 替换加载器basePath的值
+				return content.replace(
+					/^(\s*basePath\s*:\s*)(["']).*?\2/m,
+					function(match, $1) {
+						return $1 + JSON.stringify(
+							urlPrefixes[1] || urlPrefixes[0]
+						);
+					}
+				)
+			}
+		}),
+		modjsConfigFilter.restore,
+		jsFilter,
+		gulpModify({
+            fileModifier: function(file, content) {
+				return 'jsFiles[' + toAssetPath(file) + ']=' +
+					'function(window) {' + content + '};';
+			}
+		}),
+		jsFilter.restore,
+		modjsFilter,
+		gulpModify({
+            fileModifier: function(file, content) {
+				return 'define(' +
+					toAssetPath(file) + ',' +
+					'null,' +
+					'function(require, exports, module) { "use strict";' +
+						content +
+					'}' +
+				');';
+			}
+		}),
+		modjsFilter.restore,
+		gulpUglify({ ie8: true }),
 		gulpMD5({
 			exportMap: function(src, md5) {
 				md5Map[src] = md5;
@@ -332,7 +500,26 @@ gulp.task('md5-others', function() {
 	]);
 });
 
-gulp.task('default', ['md5-others'], function() {
+
+// 复制其余文件到目标目录
+gulp.task('copy-others', function() {
+	var plainTextFilter = createPlainTextFilter();
+	return gulp
+		.src([
+			srcGlobs('server', '**/*'),
+			'!' + srcGlobs('server', 'node_modules/**'),
+			'!' + srcGlobs('server', '**/*.defined.js'),
+			'!' + srcGlobs('server', '**/*.xtpl.js'),
+			'!' + srcGlobs('server', '**/*.log')
+		])
+		.pipe(plainTextFilter)
+		.pipe(gulpLEC())
+		.pipe(plainTextFilter.restore)
+		.pipe(gulpDest('server'));
+});
+
+
+gulp.task('default', ['build-styles', 'build-tpl', 'build-js'], function() {
 	console.log('Done.');
 	console.dir(md5Map);
 });
