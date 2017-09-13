@@ -64,9 +64,10 @@ function toAssetPath(file) {
 }
 
 // 解析出可用的静态资源路径
-// 使用第一个路径引用CSS、普通JS资源
-// 使用第二个（或第一个）路径引用模块化JS资源
-// 保留最后一个静态资源路径用于在CSS文件中引用资源以及在页面中引用内容资源
+//   使用第一、二个路径交替引用CSS、JS资源
+//   使用第三个路径在CSS文件中引用资源
+//   使用第三个路径在页面中引用资源
+//   使用第三个路径作为JS加载器基路径
 var urlPrefixes = (config.static_hosts || ['']).map(function(host) {
 	var result = util.parseVars(config.static_url_prefix, {
 		host: host,
@@ -75,10 +76,15 @@ var urlPrefixes = (config.static_hosts || ['']).map(function(host) {
 	if (result[result.length - 1] !== '/') { result += '/'; }
 	return result;
 });
+// 补够3个路径
+while (urlPrefixes.length < 3) {
+	urlPrefixes.push(urlPrefixes[urlPrefixes.length - 1]);
+}
 
 
 var depaMap; // 资源依赖表
-var md5Map = { }; // 存放资源文件的MD5映射
+var md5Map = { }; // 资源文件的MD5映射
+var assetMap; // 合并文件后的资源依赖表
 
 
 // 分析页面模板依赖
@@ -115,8 +121,8 @@ gulp.task('md5-others', function() {
 
 // CSS构建
 gulp.task('build-styles', ['md5-others'], function() {
-	// 把CSS文件中的相对路径转换为绝对路径（总是使用最后一个静态资源URL前缀）
-	var inCSSURLPrefix = urlPrefixes[urlPrefixes.length - 1];
+	// 把CSS文件中的相对路径转换为绝对路径
+	var inCSSURLPrefix = urlPrefixes[2];
 
 	function cssRel2Root(file, fn) {
 		return function(match, quot, origPath) {
@@ -194,8 +200,8 @@ gulp.task('build-tpl', function() {
 						)
 					) + ',' +
 					'null,' +
-					'function(require, exports, module) {' +
-						'module.exports=' + JSON.stringify(content) +
+					'function(r, e, m) {' +
+						'm.exports=' + JSON.stringify(content) +
 					'}' +
 				');';
 			}
@@ -210,6 +216,7 @@ gulp.task('build-tpl', function() {
 });
 
 
+// 构建普通js和模块化js
 gulp.task('build-js', function() {
 	// 匹配普通JS
 	var jsFilter = gulpFilter(function(file) {
@@ -240,11 +247,9 @@ gulp.task('build-js', function() {
 				return content.replace(
 					/^(\s*basePath\s*:\s*)(["']).*?\2/m,
 					function(match, $1) {
-						return $1 + JSON.stringify(
-							urlPrefixes[1] || urlPrefixes[0]
-						);
+						return $1 + JSON.stringify(urlPrefixes[2]);
 					}
-				)
+				);
 			}
 		}),
 		modjsConfigFilter.restore,
@@ -298,8 +303,7 @@ gulp.task('copy-others', function() {
 });
 
 
-var assetMap;
-// 资源合并
+// 资源合并，并输出合并后的资源依赖表
 gulp.task('combine-assets', ['depa', 'build-styles', 'build-tpl', 'build-js'], function(callback) {
 	assetMap = combiner.combine(
 		depaMap,
@@ -312,9 +316,8 @@ gulp.task('combine-assets', ['depa', 'build-styles', 'build-tpl', 'build-js'], f
 });
 
 
-
 gulp.task('default', ['combine-assets', 'copy-others'], function() {
-	// 写入服务器端用的MD5映射表
+	// 服务器端用的MD5映射表
 	fs.writeFileSync(
 		path.join(config.build_to.server, 'md5-map.json'),
 		jsonFormat(md5Map),
@@ -324,7 +327,7 @@ gulp.task('default', ['combine-assets', 'copy-others'], function() {
 	// 浏览器端用的MD5映射表，要进行瘦身
 	var md5MapForBrowser = { };
 	Object.keys(md5Map).forEach(function(key) {
-		// 模板文件和样式文件不会动态载入，所以可以移除
+		// 模板文件和样式文件不会动态载入，可以移除
 		if (!/\.(xtpl|css)$/i.test(key)) {
 			// 仅保留MD5的部分而不是完整的路径
 			md5MapForBrowser[key] = md5Map[key].split('.').splice(-2, 1)[0];
@@ -337,29 +340,30 @@ gulp.task('default', ['combine-assets', 'copy-others'], function() {
 		fs.mkdirSync(md5Dirname);
 	}
 
-	md5MapForBrowser = 'var md5Map = ' + JSON.stringify(md5MapForBrowser);
-	var md5MapForBrowserPath = 'md5-map.' + util.calcMd5(md5MapForBrowser, 10) + '.js';
-	// 写入服务器端用的MD5映射表
+	md5MapForBrowser = 'var md5Map = ' + JSON.stringify(md5MapForBrowser) + ';';
+	var md5MapForBrowserFileName = 'md5-map.' + util.calcMd5(md5MapForBrowser, 10) + '.js';
+	// 浏览器端用的MD5映射表
 	fs.writeFileSync(
-		path.join(md5Dirname, md5MapForBrowserPath),
+		path.join(md5Dirname, md5MapForBrowserFileName),
 		md5MapForBrowser,
 		'utf8'
 	);
 
 	Object.keys(assetMap).forEach(function(tplRelPath) {
 		var tplAssets = assetMap[tplRelPath];
-		['headjs', 'css', 'js', 'modjs'].forEach(function(assetType, i) {
-			if (i === 0) {
+		['headjs', 'css', 'modjs', 'js'].forEach(function(assetType, i) {
+			// 增加映射表资源引用
+			if (assetType === 'headjs') {
 				tplAssets[assetType] = tplAssets[assetType] || [];
-				tplAssets[assetType].unshift('md5-map/' + md5MapForBrowserPath);
+				tplAssets[assetType].unshift('md5-map/' + md5MapForBrowserFileName);
 			}
+
 			if (!tplAssets[assetType]) { return; }
+
 			tplAssets[assetType] = tplAssets[assetType].map(function(p) {
 				if (!util.isURL(p)) {
-					var urlPrefix;
-					if (i === 3) { urlPrefix = urlPrefixes[1]; }
-					urlPrefix = urlPrefix || urlPrefixes[0];
-					p = urlPrefix + p;
+					// 交替使用不同的URL前缀
+					p = urlPrefixes[i % 2] + p;
 				}
 				return p;
 			});
@@ -370,12 +374,9 @@ gulp.task('default', ['combine-assets', 'copy-others'], function() {
 	fs.writeFileSync(
 		path.join(config.build_to.server, 'asset-config.json'),
 		jsonFormat({
-			url_prefix: urlPrefixes.slice(-1)[0],
+			url_prefix: urlPrefixes[2],
 			map: assetMap
 		}),
 		'utf8'
 	);
 });
-
-
-// node bin/index build /Users/HeeroLaw/Beiliao/git/ibeiliao.com  --env test --rev test111
