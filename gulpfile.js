@@ -231,28 +231,9 @@ gulp.task('build-js', function() {
 	}, {
 		restore: true
 	});
-	// 匹配模块化配置
-	var modjsConfigFilter = gulpFilter(function(file) {
-		return path.basename(file.path) === 'bowl-config.raw.js';
-	}, {
-		restore: true
-	});
 
 	return pump([
 		gulp.src(srcGlobs('static', '**/*.js')),
-		modjsConfigFilter,
-		gulpModify({
-            fileModifier: function(file, content) {
-				// 替换加载器basePath的值
-				return content.replace(
-					/^(\s*basePath\s*:\s*)(["']).*?\2/m,
-					function(match, $1) {
-						return $1 + JSON.stringify(urlPrefixes[2]);
-					}
-				);
-			}
-		}),
-		modjsConfigFilter.restore,
 		jsFilter,
 		gulpModify({
             fileModifier: function(file, content) {
@@ -327,8 +308,8 @@ gulp.task('default', ['combine-assets', 'copy-others'], function() {
 	// 浏览器端用的MD5映射表，要进行瘦身
 	var md5MapForBrowser = { };
 	Object.keys(md5Map).forEach(function(key) {
-		// 模板文件和样式文件不会动态载入，可以移除
-		if (!/\.(xtpl|css)$/i.test(key)) {
+		// 模板文件、样式文件、模块化脚本文件不会动态载入，可以移除
+		if (!/\.(|css)$/i.test(key) || /\.raw\.js$/.test(key)) {
 			// 仅保留MD5的部分而不是完整的路径
 			md5MapForBrowser[key] = md5Map[key].split('.').splice(-2, 1)[0];
 		}
