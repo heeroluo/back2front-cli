@@ -48,13 +48,12 @@ module.exports = function(pjPath, options, rawConfig) {
 		var i = 1;
 		do {
 			if (i > 10000) {
-				errorExist('No available revision directory.');
+				errorExit('No available revision directory.');
 				break;
 			}
 			rev = date + '-' + (i++);
 		} while (
-			fs.existsSync(util.parseVars(buildTo.server, { rev: rev, env: env })) ||
-			fs.existsSync(util.parseVars(buildTo.static, { rev: rev, env: env }))
+			fs.existsSync(util.parseVars(buildTo.server, { rev: rev, env: env }))
 		);
 	}
 	// 解析出发布路径
