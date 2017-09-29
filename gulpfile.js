@@ -30,8 +30,12 @@ function srcGlobs(type, rule) {
 }
 
 // 返回目标目录
-function gulpDest(type) {
-	return gulp.dest(config.build_to[type]);
+function gulpDest(type, subPath) {
+	var destPath = config.build_to[type];
+	if (subPath) {
+		destPath = path.join(destPath, subPath);
+	}
+	return gulp.dest(destPath);
 }
 
 // 匹配纯文本文件的过滤器
@@ -272,6 +276,7 @@ gulp.task('copy-others', function() {
 	return gulp
 		.src([
 			srcGlobs('server', '**/*'),
+			'!' + srcGlobs('static', '**/*'), // 资源文件的复制放到copy-assets中完成
 			'!' + srcGlobs('server', 'node_modules/**'),
 			'!' + srcGlobs('server', '**/*.defined.js'),
 			'!' + srcGlobs('server', '**/*.xtpl.js'),
@@ -281,6 +286,22 @@ gulp.task('copy-others', function() {
 		.pipe(gulpLEC())
 		.pipe(plainTextFilter.restore)
 		.pipe(gulpDest('server'));
+});
+
+// 复制资源文件到目标目录
+// Express端只可能用到模板或者js
+gulp.task('copy-assets', function() {
+	return gulp
+		.src([
+			srcGlobs('static', '**/*.xtpl'),
+			srcGlobs('static', '**/*.js')
+		])
+		.pipe(gulpLEC())
+		.pipe(
+			gulpDest('server', path.relative(
+				config.build_from.server, config.build_from.static
+			))
+		);
 });
 
 
@@ -297,7 +318,7 @@ gulp.task('combine-assets', ['depa', 'build-styles', 'build-tpl', 'build-js'], f
 });
 
 
-gulp.task('default', ['combine-assets', 'copy-others'], function() {
+gulp.task('default', ['combine-assets', 'copy-others', 'copy-assets'], function() {
 	// 服务器端用的MD5映射表
 	fs.writeFileSync(
 		path.join(config.build_to.server, 'md5-map.json'),
@@ -307,7 +328,12 @@ gulp.task('default', ['combine-assets', 'copy-others'], function() {
 
 	// 浏览器端用的MD5映射表，要进行瘦身
 	var md5MapForBrowser = { };
-	Object.keys(md5Map).forEach(function(key) {
+	
+	let md5MapKeys = Object.keys(md5Map);
+	// 先排序，避免由于顺序不同导致文件内容不一致
+	md5MapKeys.sort();
+
+	md5MapKeys.forEach(function(key) {
 		// 模板文件、样式文件、模块化脚本文件不会动态载入，可以移除
 		if (!/\.(|css)$/i.test(key) || /\.raw\.js$/.test(key)) {
 			// 仅保留MD5的部分而不是完整的路径
