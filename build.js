@@ -65,7 +65,7 @@ module.exports = function(pjPath, options, rawConfig) {
 
 	// 解析合并规则
 	var ruleMap = { };
-	actualConfig.combine = rawConfig.combine.map(function(rule) {
+	actualConfig.combine = (rawConfig.combine || []).map(function(rule) {
 		var list = [ ];
 		rule.list.forEach(function(item) {
 			list.push(item);
@@ -88,7 +88,7 @@ module.exports = function(pjPath, options, rawConfig) {
 
 	// 静态资源URL前缀、单独文件规则无须解析
 	actualConfig.static_url_prefix = rawConfig.static_url_prefix;
-	actualConfig.standalone = rawConfig.standalone.slice();
+	actualConfig.standalone = (rawConfig.standalone || []).slice();
 
 	// 以子进程方式调用Gulp
 	childProcess.fork(require.resolve('gulp/bin/gulp'), [
