@@ -335,7 +335,7 @@ gulp.task('default', ['combine-assets', 'copy-others', 'copy-assets'], function(
 
 	md5MapKeys.forEach(function(key) {
 		// 模板文件、样式文件、模块化脚本文件不会动态载入，可以移除
-		if (!/\.(|css)$/i.test(key) || /\.raw\.js$/.test(key)) {
+		if (!/\.(xtpl|css|js)$/i.test(key) || /\.raw\.js$/.test(key)) {
 			// 仅保留MD5的部分而不是完整的路径
 			md5MapForBrowser[key] = md5Map[key].split('.').splice(-2, 1)[0];
 		}
