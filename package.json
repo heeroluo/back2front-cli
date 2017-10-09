@@ -28,21 +28,21 @@
     "url": "https://github.com/heeroluo/back2front-cli.git"
   },
   "dependencies": {
-    "glob": "^7.1.1",
+    "glob": "^7.1.2",
     "gulp": "^3.9.1",
-    "gulp-clean-css": "^2.2.2",
-    "gulp-filter": "^4.0.0",
+    "gulp-clean-css": "^3.9.0",
+    "gulp-filter": "^5.0.1",
     "gulp-line-ending-corrector": "^1.0.1",
     "gulp-modify": "^0.1.1",
     "gulp-uglify": "^3.0.0",
-    "json-format": "^0.1.2",
-    "minimatch": "^3.0.3",
+    "json-format": "^1.0.1",
+    "minimatch": "^3.0.4",
     "minimist": "^1.2.0",
     "pump": "^1.0.2",
     "through2": "^2.0.3"
   },
   "engines": {
-    "node": ">=4.0.0"
+    "node": ">=6.0.0"
   },
   "preferGlobal": true
 }
