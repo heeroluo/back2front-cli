@@ -16,6 +16,7 @@ var gulpModify = require('gulp-modify');
 var gulpCleanCSS = require('gulp-clean-css');
 var gulpUglify = require('gulp-uglify');
 var jsonFormat = require('json-format');
+var babel = require('babel-core');
 var util = require('./lib/util');
 var depa = require('./depa');
 var combiner = require('./lib/asset-combiner');
@@ -253,7 +254,12 @@ gulp.task('build-js', function() {
 					toAssetPath(file) + ',' +
 					'null,' +
 					'function(require, exports, module) { "use strict";' +
-						content +
+						babel.transform(content, {
+							presets: [
+								['env', { modules: false }],
+								'stage-2'
+							]
+						}).code +
 					'}' +
 				');';
 			}
