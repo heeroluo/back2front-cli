@@ -1,6 +1,6 @@
 {
   "name": "back2front-cli",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Command line interface tools for Back2Front",
   "keywords": [
     "back2front",
