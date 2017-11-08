@@ -1,6 +1,6 @@
 {
   "name": "back2front-cli",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Command line interface tools for Back2Front",
   "keywords": [
     "back2front",
@@ -28,6 +28,9 @@
     "url": "https://github.com/heeroluo/back2front-cli.git"
   },
   "dependencies": {
+    "babel-core": "^6.26.0",
+    "babel-preset-env": "^1.6.0",
+    "babel-preset-stage-2": "^6.24.1",
     "glob": "^7.1.2",
     "gulp": "^3.9.1",
     "gulp-clean-css": "^3.9.0",
