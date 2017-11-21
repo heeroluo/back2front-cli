@@ -13,6 +13,7 @@ var gulpFilter = require('gulp-filter');
 var gulpMD5 = require('./lib/gulp-md5-export');
 var gulpLEC = require('gulp-line-ending-corrector');
 var gulpModify = require('gulp-modify');
+var gulpPostCSS = require('gulp-postcss');
 var gulpCleanCSS = require('gulp-clean-css');
 var gulpUglify = require('gulp-uglify');
 var jsonFormat = require('json-format');
@@ -129,6 +130,13 @@ gulp.task('build-styles', ['md5-others'], function() {
 	// 把CSS文件中的相对路径转换为绝对路径
 	var inCSSURLPrefix = urlPrefixes[2];
 
+	// 匹配*.scss
+	var scssFilter = gulpFilter(function(file) {
+		return /\.scss$/i.test(file.path);
+	}, {
+		restore: true
+	});
+
 	function cssRel2Root(file, fn) {
 		return function(match, quot, origPath) {
 			if (util.isURL(origPath) || util.isBase64(origPath)) {
@@ -149,7 +157,12 @@ gulp.task('build-styles', ['md5-others'], function() {
 	}
 
 	return pump([
-		gulp.src(srcGlobs('static', '**/*.css')),
+		gulp.src(srcGlobs('static', '**/*.(scss|css)')),
+		scssFilter,
+		gulpPostCSS({
+			plugins: []
+		}),
+		scssFilter.restore,
 		gulpModify({
 			// 相对路径转成绝对路径
             fileModifier: function(file, content) {

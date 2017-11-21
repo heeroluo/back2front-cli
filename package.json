@@ -1,6 +1,6 @@
 {
   "name": "back2front-cli",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Command line interface tools for Back2Front",
   "keywords": [
     "back2front",
@@ -28,6 +28,7 @@
     "url": "https://github.com/heeroluo/back2front-cli.git"
   },
   "dependencies": {
+    "autoprefixer": "^7.1.6",
     "babel-core": "^6.26.0",
     "babel-preset-env": "^1.6.0",
     "babel-preset-stage-2": "^6.24.1",
@@ -37,15 +38,20 @@
     "gulp-filter": "^5.0.1",
     "gulp-line-ending-corrector": "^1.0.1",
     "gulp-modify": "^0.1.1",
+    "gulp-postcss": "^7.0.0",
     "gulp-uglify": "^3.0.0",
     "json-format": "^1.0.1",
     "minimatch": "^3.0.4",
     "minimist": "^1.2.0",
+    "postcss-load-config": "^1.2.0",
+    "postcss-px2rem": "^0.3.0",
+    "precss": "^2.0.0",
     "pump": "^1.0.2",
     "through2": "^2.0.3"
   },
   "engines": {
     "node": ">=6.0.0"
   },
-  "preferGlobal": true
+  "preferGlobal": true,
+  "devDependencies": {}
 }
