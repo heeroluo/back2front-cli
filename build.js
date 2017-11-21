@@ -17,8 +17,8 @@ var path = require('path'),
 module.exports = function(pjPath, options, rawConfig) {
 	var env = String(options.env).toLowerCase();
 	// 检查env合法性
-	if (['test', 'pre', 'prod'].indexOf(env) === -1) {
-		errorExit('Environment must be "test", pre" or "prod".');
+	if (['dev', 'test', 'pre', 'prod'].indexOf(env) === -1) {
+		errorExit('Environment must be "dev", "test", pre" or "prod".');
 	}
 
 	// 存放解析后的构建配置

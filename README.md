@@ -28,4 +28,4 @@ back2front depa <path> [--o <output-file>]
 back2front build <path> --env <env>
 ```
 
-其中，「path」为项目路径；「env」为环境参数，可以为「test」（测试环境）、「pre」（预发布环境）或「prod」（生产环境）。
+其中，「path」为项目路径；「env」为环境参数，可以为「dev」、「test」（测试环境）、「pre」（预发布环境）或「prod」（生产环境）。
