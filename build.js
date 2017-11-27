@@ -14,7 +14,7 @@ const errorExit = util.errorExit;
 
 // node bin/index build /Users/HeeroLaw/Projects/back2front --env test --rev 20161217
 // back2front build /Users/HeeroLaw/Projects/back2front --env test --rev 20161217
-module.exports = function(pjPath, options, rawConfig) {
+module.exports = (pjPath, options, rawConfig) => {
 	const env = String(options.env).toLowerCase();
 	// 检查env合法性
 	if (['dev', 'test', 'pre', 'prod'].indexOf(env) === -1) {
