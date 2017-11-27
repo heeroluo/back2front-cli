@@ -1,28 +1,28 @@
 /*!
- * Command line tools for Back2Front
+ * Command line interface tools for Back2Front
  * 构建
  */
 
 'use strict';
 
-var path = require('path'),
-	fs = require('fs'),
-	childProcess = require('child_process'),
-	util = require('./lib/util'),
-	errorExit = util.errorExit;
+const path = require('path');
+const fs = require('fs');
+const childProcess = require('child_process');
+const util = require('./lib/util');
+const errorExit = util.errorExit;
 
 
 // node bin/index build /Users/HeeroLaw/Projects/back2front --env test --rev 20161217
 // back2front build /Users/HeeroLaw/Projects/back2front --env test --rev 20161217
 module.exports = function(pjPath, options, rawConfig) {
-	var env = String(options.env).toLowerCase();
+	const env = String(options.env).toLowerCase();
 	// 检查env合法性
 	if (['dev', 'test', 'pre', 'prod'].indexOf(env) === -1) {
 		errorExit('Environment must be "dev", "test", pre" or "prod".');
 	}
 
 	// 存放解析后的构建配置
-	var actualConfig = {
+	const actualConfig = {
 		env: env,
 		build_from: {
 			server: pjPath,
@@ -31,30 +31,28 @@ module.exports = function(pjPath, options, rawConfig) {
 		}
 	};
 
-	var buildTo = actualConfig.build_to = { };
+	const buildTo = actualConfig.build_to = { };
 	// 解析发布路径，resolve后路径中还包含{$rev}，不是最终路径
 	buildTo.server = path.resolve(pjPath, rawConfig.build_to.server);
 	buildTo.static = path.resolve(pjPath, rawConfig.build_to.static);
 
 	// 版本号
-	var rev = String(options.rev || '').toLowerCase();
-	// 没有指定版本号的时候自动生成，规则是“年月日-发布次数”
+	let rev = String(options.rev || '').toLowerCase();
+	// 没有指定版本号的时候自动生成，规则是“年月日-时分秒-发布次数”
 	if (!rev) {
-		var date = new Date();
-		date = date.getFullYear() +
-			( '0' + (date.getMonth() + 1) ).slice(-2) +
-			( '0' + date.getDate() ).slice(-2);
+		let date = util.formatDate(new Date(), 'YYYYMMDD-hhmmss');
+		let i = 1;
+		rev = date;
 
-		var i = 1;
-		do {
-			if (i > 10000) {
+		while (fs.existsSync(
+			util.parseVars(buildTo.server, { rev: rev, env: env })
+		)) {
+			if (i > 100) {
 				errorExit('No available revision directory.');
 				break;
 			}
 			rev = date + '-' + (i++);
-		} while (
-			fs.existsSync(util.parseVars(buildTo.server, { rev: rev, env: env }))
-		);
+		}
 	}
 	// 解析出发布路径
 	buildTo.server = util.parseVars(buildTo.server, { rev: rev, env: env });
@@ -64,10 +62,10 @@ module.exports = function(pjPath, options, rawConfig) {
 	actualConfig.rev = rev;
 
 	// 解析合并规则
-	var ruleMap = { };
-	actualConfig.combine = (rawConfig.combine || []).map(function(rule) {
+	const ruleMap = { };
+	actualConfig.combine = (rawConfig.combine || [ ]).map((rule) => {
 		var list = [ ];
-		rule.list.forEach(function(item) {
+		rule.list.forEach((item) => {
 			list.push(item);
 			var embedRule = ruleMap[item];
 			if (embedRule) {
