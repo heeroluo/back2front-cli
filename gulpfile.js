@@ -5,25 +5,25 @@
 
 'use strict';
 
-var path = require('path');
-var fs = require('fs');
-var pump = require('pump');
-var gulp = require('gulp');
-var gulpFilter = require('gulp-filter');
-var gulpMD5 = require('./lib/gulp-md5-export');
-var gulpLEC = require('gulp-line-ending-corrector');
-var gulpModify = require('gulp-modify');
-var gulpPostCSS = require('gulp-postcss');
-var gulpCleanCSS = require('gulp-clean-css');
-var gulpUglify = require('gulp-uglify');
-var jsonFormat = require('json-format');
-var babel = require('babel-core');
-var util = require('./lib/util');
-var depa = require('./depa');
-var combiner = require('./lib/asset-combiner');
-var minimist = require('minimist');
-var argvs = require('minimist')(process.argv.slice(2));
-var config = JSON.parse(argvs.config);
+const path = require('path');
+const fs = require('fs');
+const pump = require('pump');
+const gulp = require('gulp');
+const gulpFilter = require('gulp-filter');
+const gulpMD5 = require('./lib/gulp-md5-export');
+const gulpLEC = require('gulp-line-ending-corrector');
+const gulpModify = require('gulp-modify');
+const postcssrc = require('postcss-load-config');
+const gulpPostCSS = require('gulp-postcss');
+const gulpCleanCSS = require('gulp-clean-css');
+const gulpUglify = require('gulp-uglify');
+const jsonFormat = require('json-format');
+const babel = require('babel-core');
+const util = require('./lib/util');
+const depa = require('./depa');
+const combiner = require('./lib/asset-combiner');
+const argvs = require('minimist')(process.argv.slice(2));
+const config = JSON.parse(argvs.config);
 
 
 // 返回文件匹配规则
@@ -33,7 +33,7 @@ function srcGlobs(type, rule) {
 
 // 返回目标目录
 function gulpDest(type, subPath) {
-	var destPath = config.build_to[type];
+	let destPath = config.build_to[type];
 	if (subPath) {
 		destPath = path.join(destPath, subPath);
 	}
@@ -46,6 +46,7 @@ function createPlainTextFilter() {
 		return [
 			'html',
 			'css',
+			'scss',
 			'js',
 			'json',
 			'txt',
@@ -74,8 +75,8 @@ function toAssetPath(file) {
 //   使用第三个路径在CSS文件中引用资源
 //   使用第三个路径在页面中引用资源
 //   使用第三个路径作为JS加载器基路径
-var urlPrefixes = (config.static_hosts || ['']).map(function(host) {
-	var result = util.parseVars(config.static_url_prefix, {
+const urlPrefixes = (config.static_hosts || ['']).map(function(host) {
+	let result = util.parseVars(config.static_url_prefix, {
 		host: host,
 		rev: config.rev
 	});
@@ -88,14 +89,16 @@ while (urlPrefixes.length < 3) {
 }
 
 
-var depaMap; // 资源依赖表
-var md5Map = { }; // 资源文件的MD5映射
-var assetMap; // 合并文件后的资源依赖表
+// 资源依赖表
+let depaMap;
+const md5Map = { }; // 资源文件的MD5映射
+let assetMap; // 合并文件后的资源依赖表
+const postCSSConfig = { }; // PostCSS配置
 
 
-// 分析页面模板依赖
-gulp.task('depa', function(callback) {
-	depa(config.pjPath, null, config).then(function(result) {
+// 分析页面资源依赖
+gulp.task('depa', (callback) => {
+	depa(config.pjPath, null, config).then((result) => {
 		depaMap = result;
 		callback();
 	});
@@ -103,12 +106,13 @@ gulp.task('depa', function(callback) {
 
 
 // 非代码文件加MD5戳
-gulp.task('md5-others', function() {
+gulp.task('md5-others', () => {
 	var plainTextFilter = createPlainTextFilter();
 	return pump([
 		gulp.src([
 			srcGlobs('static', '**/*'),
 			'!' + srcGlobs('static', '**/*.js'),
+			'!' + srcGlobs('static', '**/*.scss'),
 			'!' + srcGlobs('static', '**/*.css'),
 			'!' + srcGlobs('static', '**/*.xtpl')
 		]),
@@ -116,7 +120,7 @@ gulp.task('md5-others', function() {
 		gulpLEC(),
 		plainTextFilter.restore,
 		gulpMD5({
-			exportMap: function(src, md5) {
+			exportMap(src, md5) {
 				md5Map[src] = md5;
 			}
 		}),
@@ -125,26 +129,40 @@ gulp.task('md5-others', function() {
 });
 
 
+// 加载PostCSS配置
+gulp.task('load-postcss-config', (callback) => {
+	postcssrc(null, config.build_from.server, {
+		argv: ''
+	}).then(({ plugins, options }) => {
+		postCSSConfig.plugins = plugins;
+		postCSSConfig.options = options;
+		callback();
+	}, (e) => {
+		callback();
+	});
+});
+
+
 // CSS构建
-gulp.task('build-styles', ['md5-others'], function() {
+gulp.task('build-styles', ['load-postcss-config', 'md5-others'], () => {
 	// 把CSS文件中的相对路径转换为绝对路径
-	var inCSSURLPrefix = urlPrefixes[2];
+	const inCSSURLPrefix = urlPrefixes[2];
 
 	// 匹配*.scss
-	var scssFilter = gulpFilter(function(file) {
+	const scssFilter = gulpFilter((file) => {
 		return /\.scss$/i.test(file.path);
 	}, {
 		restore: true
 	});
 
 	function cssRel2Root(file, fn) {
-		return function(match, quot, origPath) {
+		return (match, quot, origPath) => {
 			if (util.isURL(origPath) || util.isBase64(origPath)) {
 				// 不对URL或Base64编码做处理
 				return match;
 			} else {
 				// 计算出相对项目根目录的路径
-				var relPath = util.normalizeSlash(
+				let relPath = util.normalizeSlash(
 					path.relative(
 						file.base,
 						path.resolve(path.dirname(file.path), origPath)
@@ -157,22 +175,23 @@ gulp.task('build-styles', ['md5-others'], function() {
 	}
 
 	return pump([
-		gulp.src(srcGlobs('static', '**/*.(scss|css)')),
+		gulp.src([
+			srcGlobs('static', '**/*.css'),
+			srcGlobs('static', '**/*.scss')
+		]),
 		scssFilter,
-		gulpPostCSS({
-			plugins: []
-		}),
+		gulpPostCSS(postCSSConfig.plugins),
 		scssFilter.restore,
 		gulpModify({
 			// 相对路径转成绝对路径
-            fileModifier: function(file, content) {
+            fileModifier(file, content) {
 				return content
 					// 移除CSS的import语句，因为分析依赖的时候已经把import的文件提取出来
 					.replace(/^\s*@import\s+.*$/m, '')
 					// 替换 url(...) 中的路径
 					.replace(
 						/\burl\((['"]?)(.+?)\1\)/g,
-						cssRel2Root(file, function(result) {
+						cssRel2Root(file, (result) => {
 							return 'url(' + result + ')';
 						})
 					);
@@ -183,9 +202,9 @@ gulp.task('build-styles', ['md5-others'], function() {
 			aggressiveMerging: false
 		}),
 		gulpModify({
-            fileModifier: function(file, content) {
-				var assetPath = toAssetPath(file);
-				var result = 'cssFiles[' + assetPath + ']=' + JSON.stringify(content) + ';';
+            fileModifier(file, content) {
+				let assetPath = toAssetPath(file);
+				let result = 'cssFiles[' + assetPath + ']=' + JSON.stringify(content) + ';';
 				file.path = util.convertExtname(file.path);
 				return result;
 			}
@@ -209,7 +228,7 @@ gulp.task('build-tpl', function() {
 		]),
 		gulpLEC(),
 		gulpModify({
-			fileModifier: function(file, content) {
+			fileModifier(file, content) {
 				file.path = util.convertExtname(file.path);
 				return 'define(' +
 					JSON.stringify(
@@ -225,7 +244,7 @@ gulp.task('build-tpl', function() {
 			}
 		}),
 		gulpMD5({
-			exportMap: function(src, md5) {
+			exportMap(src, md5) {
 				md5Map[util.revertExtname(src)] = md5;
 			}
 		}),
@@ -235,15 +254,15 @@ gulp.task('build-tpl', function() {
 
 
 // 构建普通js和模块化js
-gulp.task('build-js', function() {
+gulp.task('build-js', () => {
 	// 匹配普通JS
-	var jsFilter = gulpFilter(function(file) {
+	const jsFilter = gulpFilter((file) => {
 		return /\.raw\.js$/i.test(file.path);
 	}, {
 		restore: true
 	});
 	// 匹配模块化JS
-	var modjsFilter = gulpFilter(function(file) {
+	const modjsFilter = gulpFilter((file) => {
 		return path.extname(file.path).toLowerCase() === '.js' &&
 			!/\.raw\.js$/i.test(file.path);
 	}, {
@@ -254,7 +273,7 @@ gulp.task('build-js', function() {
 		gulp.src(srcGlobs('static', '**/*.js')),
 		jsFilter,
 		gulpModify({
-            fileModifier: function(file, content) {
+            fileModifier(file, content) {
 				return 'jsFiles[' + toAssetPath(file) + ']=' +
 					'function(window) {' + content + '};';
 			}
@@ -262,7 +281,7 @@ gulp.task('build-js', function() {
 		jsFilter.restore,
 		modjsFilter,
 		gulpModify({
-            fileModifier: function(file, content) {
+            fileModifier(file, content) {
 				return 'define(' +
 					toAssetPath(file) + ',' +
 					'null,' +
@@ -280,7 +299,7 @@ gulp.task('build-js', function() {
 		modjsFilter.restore,
 		gulpUglify({ ie8: true }),
 		gulpMD5({
-			exportMap: function(src, md5) {
+			exportMap(src, md5) {
 				md5Map[src] = md5;
 			}
 		}),
@@ -290,8 +309,8 @@ gulp.task('build-js', function() {
 
 
 // 复制其余文件到目标目录
-gulp.task('copy-others', function() {
-	var plainTextFilter = createPlainTextFilter();
+gulp.task('copy-others', () => {
+	const plainTextFilter = createPlainTextFilter();
 	return gulp
 		.src([
 			srcGlobs('server', '**/*'),
@@ -309,7 +328,7 @@ gulp.task('copy-others', function() {
 
 // 复制资源文件到目标目录
 // Express端只可能用到模板或者js
-gulp.task('copy-assets', function() {
+gulp.task('copy-assets', () => {
 	return gulp
 		.src([
 			srcGlobs('static', '**/*.xtpl'),
@@ -325,7 +344,12 @@ gulp.task('copy-assets', function() {
 
 
 // 资源合并，并输出合并后的资源依赖表
-gulp.task('combine-assets', ['depa', 'build-styles', 'build-tpl', 'build-js'], function(callback) {
+gulp.task('combine-assets', [
+	'depa',
+	'build-styles',
+	'build-tpl',
+	'build-js'
+], (callback) => {
 	assetMap = combiner.combine(
 		depaMap,
 		md5Map,
@@ -337,7 +361,11 @@ gulp.task('combine-assets', ['depa', 'build-styles', 'build-tpl', 'build-js'], f
 });
 
 
-gulp.task('default', ['combine-assets', 'copy-others', 'copy-assets'], function() {
+gulp.task('default', [
+	'combine-assets',
+	'copy-others',
+	'copy-assets'
+], () => {
 	// 服务器端用的MD5映射表
 	fs.writeFileSync(
 		path.join(config.build_to.server, 'md5-map.json'),
@@ -346,13 +374,13 @@ gulp.task('default', ['combine-assets', 'copy-others', 'copy-assets'], function(
 	);
 
 	// 浏览器端用的MD5映射表，要进行瘦身
-	var md5MapForBrowser = { };
-	
+	let md5MapForBrowser = { };
+
 	let md5MapKeys = Object.keys(md5Map);
 	// 先排序，避免由于顺序不同导致文件内容不一致
 	md5MapKeys.sort();
 
-	md5MapKeys.forEach(function(key) {
+	md5MapKeys.forEach((key) => {
 		// 模板文件、样式文件、模块化脚本文件不会动态载入，可以移除
 		if (!/\.(xtpl|css|js)$/i.test(key) || /\.raw\.js$/.test(key)) {
 			// 仅保留MD5的部分而不是完整的路径
@@ -361,13 +389,13 @@ gulp.task('default', ['combine-assets', 'copy-others', 'copy-assets'], function(
 	});
 
 	// 创建存放MD5映射表的文件夹
-	var md5Dirname = path.join(config.build_to.static, 'md5-map');
+	let md5Dirname = path.join(config.build_to.static, 'md5-map');
 	if (!fs.existsSync(md5Dirname)) {
 		fs.mkdirSync(md5Dirname);
 	}
 
 	md5MapForBrowser = 'var md5Map = ' + JSON.stringify(md5MapForBrowser) + ';';
-	var md5MapForBrowserFileName = 'md5-map.' + util.calcMd5(md5MapForBrowser, 10) + '.js';
+	let md5MapForBrowserFileName = 'md5-map.' + util.calcMd5(md5MapForBrowser, 10) + '.js';
 	// 浏览器端用的MD5映射表
 	fs.writeFileSync(
 		path.join(md5Dirname, md5MapForBrowserFileName),
@@ -375,9 +403,9 @@ gulp.task('default', ['combine-assets', 'copy-others', 'copy-assets'], function(
 		'utf8'
 	);
 
-	Object.keys(assetMap).forEach(function(tplRelPath) {
-		var tplAssets = assetMap[tplRelPath];
-		['headjs', 'css', 'modjs', 'js'].forEach(function(assetType, i) {
+	Object.keys(assetMap).forEach((tplRelPath) => {
+		let tplAssets = assetMap[tplRelPath];
+		['headjs', 'css', 'modjs', 'js'].forEach((assetType, i) => {
 			// 增加映射表资源引用
 			if (assetType === 'headjs') {
 				tplAssets[assetType] = tplAssets[assetType] || [];
@@ -386,7 +414,7 @@ gulp.task('default', ['combine-assets', 'copy-others', 'copy-assets'], function(
 
 			if (!tplAssets[assetType]) { return; }
 
-			tplAssets[assetType] = tplAssets[assetType].map(function(p) {
+			tplAssets[assetType] = tplAssets[assetType].map((p) => {
 				if (!util.isURL(p)) {
 					// 交替使用不同的URL前缀
 					p = urlPrefixes[i % 2] + p;

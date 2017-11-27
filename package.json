@@ -52,6 +52,5 @@
   "engines": {
     "node": ">=6.0.0"
   },
-  "preferGlobal": true,
-  "devDependencies": {}
+  "preferGlobal": true
 }
