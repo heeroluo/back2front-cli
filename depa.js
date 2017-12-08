@@ -1,30 +1,30 @@
 /*!
- * Command line tools for Back2Front
+ * Command line interface tools for Back2Front
  * 依赖分析
  */
 
 'use strict';
 
-var fs = require('fs'),
-	path = require('path'),
-	minimatch = require('minimatch'),
-	glob = require('glob'),
-	util = require('./lib/util');
+const fs = require('fs');
+const path = require('path');
+const minimatch = require('minimatch');
+const glob = require('glob');
+const util = require('./lib/util');
 
 
-module.exports = function(pjPath, options, config) {
+module.exports = (pjPath, options, config) => {
 	// 静态资源根路径
-	var basePath = path.resolve(pjPath, config.static_path || config.build_from.static);
+	const basePath = path.resolve(pjPath, config.static_path || config.build_from.static);
 
 	// 获取资源相对于资源根目录的路径
 	function getRelPath(assetPath, contextPath, assetType) {
 		assetPath = assetPath.replace(/\?.*$/, '');
 		// 如果以点开头，则相对上下文目录，否则相对资源根路径
-		assetPath = /^\./.test(assetPath)
-			? path.resolve(path.dirname(contextPath), assetPath)
-			: path.join(basePath, assetPath);
+		assetPath = /^\./.test(assetPath) ?
+			path.resolve(path.dirname(contextPath), assetPath) :
+			path.join(basePath, assetPath);
 
-		if ( !path.extname(assetPath) ) {
+		if (!path.extname(assetPath)) {
 			assetPath += '.';
 			switch (assetType) {
 				case 'headjs':
@@ -41,17 +41,15 @@ module.exports = function(pjPath, options, config) {
 			}
 		}
 
-		return util.normalizeSlash(
-			path.relative(basePath, assetPath)
-		);
+		return util.normalizeSlash(path.relative(basePath, assetPath));
 	}
 
 	// 解析资源路径
 	function parsePath(p) {
-		// mod@ver to mod/ver/mod
+		// mod@ver => mod/ver/mod
 		return p.replace(
 			/([^\\\/]+)@([^\\\/]+)/g,
-			function(match, module, version) {
+			(match, module, version) => {
 				return module + '/' + version + '/' + module;
 			}
 		);
@@ -59,15 +57,15 @@ module.exports = function(pjPath, options, config) {
 
 	// 合并两个对象中的同名数组
 	function concatObj(target, src) {
-		for (var key in src) {
+		Object.keys(src).forEach((key) => {
 			target[key] = target[key].concat(src[key]);
-		}
+		});
 	}
 
 	// 数组去重复，主要用于去除重复的资源依赖
 	function uniqueArray(arr) {
-		var flags = { };
-		return arr.filter(function(item) {
+		const flags = { };
+		return arr.filter((item) => {
 			if (!item || flags[item]) {
 				return false;
 			} else {
@@ -79,27 +77,29 @@ module.exports = function(pjPath, options, config) {
 
 
 	// 资源依赖分析器
-	var assetParsers = {
+	const assetParsers = {
 		// 不在JS里面依赖其他JS，故无需分析
 		_headjs: {
-			parse: function() { return [ ]; }
+			parse() { return [ ]; }
 		},
 
 		// 只分析单个CSS的直接依赖，并进行缓存
 		_css: {
 			_cache: { },
-			parse: function(filePath, fileContent) {
-				var result = this._cache[filePath];
+			parse(filePath, fileContent) {
+				let result = this._cache[filePath];
 				if (!result) {
 					// 粗略移除代码中的注释
 					fileContent = fileContent.replace(/^\s*\/\*[\s\S]*?\*\/\s*$/mg, '');
 
 					result = [ ];
 					// 只匹配 import url(...)
-					var re = /@import\s+url\(["']*(.+?)["']*\)/, match;
-					while ( match = re.exec(fileContent) ) {
-						result.push( match[1].trim() );
+					let re = /@import\s+url\(["']*(.+?)["']*\)/;
+					let match;
+					while (match = re.exec(fileContent)) {
+						result.push(match[1].trim());
 					}
+
 					this._cache[filePath] = result;
 				}
 
@@ -109,14 +109,14 @@ module.exports = function(pjPath, options, config) {
 
 		// 不在JS里面依赖其他JS，故无需分析
 		_js: {
-			parse: function() { return [ ]; }
+			parse() { return [ ]; }
 		},
 
 		// 只分析单个模块化JS的直接依赖，并进行缓存
 		_modjs: {
 			_cache: { },
-			parse: function(filePath, fileContent) {
-				var result = this._cache[filePath];
+			parse(filePath, fileContent) {
+				let result = this._cache[filePath];
 
 				if (!result) {
 					// 粗略移除代码中的注释
@@ -124,10 +124,11 @@ module.exports = function(pjPath, options, config) {
 						.replace(/^\s*\/\*[\s\S]*?\*\/\s*$/mg, '')
 						.replace(/^\s*\/\/.*$/mg, '');
 
+					let re = /(?:^|[^.$])\brequire\s*\(\s*(["'])([^"'\s\)]+)\1\s*\)/g;
+					let match;
 					result = [ ];
-					var re = /(?:^|[^.$])\brequire\s*\(\s*(["'])([^"'\s\)]+)\1\s*\)/g, match;
-					while ( match = re.exec(fileContent) ) {
-						result.push( parsePath(match[2]) );
+					while (match = re.exec(fileContent)) {
+						result.push(parsePath(match[2]));
 					}
 
 					this._cache[filePath] = result;
@@ -139,28 +140,27 @@ module.exports = function(pjPath, options, config) {
 
 		_cache: { },
 
-		parse: function(fileRelPath, type) {
-			var t = this,
-				filePath = path.join(basePath, fileRelPath),
-				cache = this._cache;
-
+		parse(fileRelPath, type) {
+			const t = this;
+			const cache = t._cache;
+			const filePath = path.join(basePath, fileRelPath);
+	
 			if (cache[filePath]) { return cache[filePath].slice(); }
 
-			var fileContent = util.readFile(filePath),
-				parser = t['_' + type], 
-				deps = parser.parse(filePath, fileContent),
-				result = [ ];
+			const fileContent = util.readFile(filePath);
+			const parser = t['_' + type];
 
+			let result = [ ];
 			// 循环每一个依赖，递归获取依赖的依赖
-			deps.forEach(function(dep) {
+			parser.parse(filePath, fileContent).forEach((dep) => {
 				// 当前版本不处理外链资源
-				if ( util.isURL(dep) ) { return; }
+				if (util.isURL(dep)) { return; }
 
 				dep = getRelPath(dep, filePath, type);
 				// 自身
 				result.push(dep);
 				// 依赖
-				result = result.concat( t.parse(dep, type) );
+				result = result.concat(t.parse(dep, type));
 			});
 
 			// 去重复
@@ -174,38 +174,36 @@ module.exports = function(pjPath, options, config) {
 
 
 	// 分析模板依赖的资源
-	var tplParser = {
+	const tplParser = {
 		_cache: { },
 
-		parse: function(fileRelPath) {
-			var cache = this._cache;
+		parse(fileRelPath) {
+			const cache = this._cache;
 			if (cache[fileRelPath]) { return cache[fileRelPath]; }
 
-			var filePath = path.join(basePath, fileRelPath),
-				fileContent = util.readFile(filePath),
-				result = {
-					tpl: [ ],
-					headjs: [ ],
-					css: [ ],
-					js: [ ],
-					modjs: [ ]
-				},
-				match,
-				subMatch;
-
-			var re_assetList = /\{{2,3}#?\s*(headjs|css|js|modjs)\s*\(([\W\w]*?)\)/g,
-				re_assetItem,
-				assetType,
-				assetPath;
-
+			const filePath = path.join(basePath, fileRelPath);
+			const fileContent = util.readFile(filePath);
+			const result = {
+				tpl: [ ],
+				headjs: [ ],
+				css: [ ],
+				js: [ ],
+				modjs: [ ]
+			};
+			const reAssetList = /\{{2,3}#?\s*(headjs|css|js|modjs)\s*\(([\W\w]*?)\)/g;
+			const reAssetItem = /(["'])(.+?)\1/g;
+			
+			let assetType;
+			let assetPath;
+			let match;
+			let subMatch;
 			// 分析静态资源依赖
-			while ( match = re_assetList.exec(fileContent) ) {
+			while (match = reAssetList.exec(fileContent)) {
 				assetType = match[1];
-				re_assetItem = /(["'])(.+?)\1/g;
-				while ( subMatch = re_assetItem.exec(match[2]) ) {
+				while (subMatch = reAssetItem.exec(match[2])) {
 					assetPath = subMatch[2];
-					// 当前版本不处理外链资源
-					if ( util.isURL(assetPath) ) { continue; }
+					// 不处理外链资源
+					if (util.isURL(assetPath)) { continue; }
 
 					assetPath = getRelPath(parsePath(assetPath), filePath, assetType);
 
@@ -219,14 +217,14 @@ module.exports = function(pjPath, options, config) {
 			}
 
 			// 分析模板依赖
-			var re_depTpl = /\{{2,3}\s*(?:extend|parse|include|includeOnce)\s*\(\s*(['"])(.+?)\1/g,
-				depTpl,
-				depResult,
-				isCSR;
+			const reDepTpl = /\{{2,3}\s*(?:extend|parse|include|includeOnce)\s*\(\s*(['"])(.+?)\1/g;
 
-			while ( match = re_depTpl.exec(fileContent) ) {
+			let depTpl;
+			let depResult;
+			let isCSR;
+			while (match = reDepTpl.exec(fileContent)) {
 				isCSR = false;
-				depTpl = match[2].replace(/\?(.*)$/, function(match, param) {
+				depTpl = match[2].replace(/\?(.*)$/, (match, param) => {
 					isCSR = /^csr(?:Only)?$/.test(param);
 					return '';
 				});
@@ -241,16 +239,16 @@ module.exports = function(pjPath, options, config) {
 
 				// 需要在浏览器端渲染的模板
 				if (isCSR) {
-					depResult.tpl.forEach(function(tpl) {
+					depResult.tpl.forEach((tpl) => {
 						result.modjs.push(tpl + '.js');
 					});
 					result.modjs.push(depTpl + '.js');
 				}
 			}
 
-			for (var i in result) {
-				result[i] = uniqueArray(result[i]);
-			}
+			Object.keys(result).forEach((key) => {
+				result[key] = uniqueArray(result[key]);
+			});
 
 			cache[fileRelPath] = result;
 
@@ -259,15 +257,15 @@ module.exports = function(pjPath, options, config) {
 	};
 
 
-	return new Promise(function(resolve, reject) {
+	return new Promise((resolve, reject) => {
 		glob('**/*.page.xtpl', {
 			cwd: basePath
-		}, function(err, files) {
+		}, (err, files) => {
 			if (err) {
 				reject(err);
 			} else {
-				var allResult = { };
-				files.forEach(function(fileRelPath) {
+				const allResult = { };
+				files.forEach((fileRelPath) => {
 					allResult[fileRelPath] = tplParser.parse(fileRelPath);
 				});
 				resolve(allResult);
