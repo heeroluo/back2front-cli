@@ -229,13 +229,13 @@ gulp.task('build-tpl', function() {
 		gulpLEC(),
 		gulpModify({
 			fileModifier(file, content) {
+				let moduleId = util.normalizeSlash(
+					path.relative(file.base, file.path)
+				);
 				file.path = util.convertExtname(file.path);
 				return 'define(' +
-					JSON.stringify(
-						util.normalizeSlash(
-							path.relative(file.base, file.path)
-						)
-					) + ',' +
+					JSON.stringify(moduleId) +
+					',' +
 					'null,' +
 					'function(r, e, m) {' +
 						'm.exports=' + JSON.stringify(content) +
