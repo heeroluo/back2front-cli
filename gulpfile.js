@@ -180,6 +180,16 @@ gulp.task('build-styles', ['load-postcss-config', 'md5-others'], () => {
 			srcGlobs('static', '**/*.scss')
 		]),
 		scssFilter,
+		gulpModify({
+			// 替换注释符
+            fileModifier(file, content) {
+				return content.replace(/^\s*\/{2}(.*)$/mg, (match, comment) => {
+					return '/*' + comment.replace(
+						/\//g, '\\/'
+					) + '*/';
+				});
+			}
+		}),
 		gulpPostCSS(postCSSConfig.plugins),
 		scssFilter.restore,
 		gulpModify({
