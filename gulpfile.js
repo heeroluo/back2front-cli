@@ -296,12 +296,15 @@ gulp.task('build-js', () => {
 					toAssetPath(file) + ',' +
 					'null,' +
 					'function(require, exports, module) { "use strict";' +
-						babel.transform(content, {
-							presets: [
-								['env', { modules: false }],
-								'stage-2'
-							]
-						}).code +
+						babel.transform(
+							content.replace(/\b_tpl\(/, 'require.resolve('),
+							{
+								presets: [
+									['env', { modules: false }],
+									'stage-2'
+								]
+							}
+						).code +
 					'}' +
 				');';
 			}

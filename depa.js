@@ -124,7 +124,7 @@ module.exports = (pjPath, options, config) => {
 						.replace(/^\s*\/\*[\s\S]*?\*\/\s*$/mg, '')
 						.replace(/^\s*\/\/.*$/mg, '');
 
-					let re = /(?:^|[^.$])\brequire\s*\(\s*(["'])([^"'\s\)]+)\1\s*\)/g;
+					const re = /(?:^|[^.$])\b(?:require|_tpl)\s*\(\s*(["'])([^"'\s\)]+)\1\s*\)/g;
 					let match;
 					result = [ ];
 					while (match = re.exec(fileContent)) {
@@ -182,7 +182,7 @@ module.exports = (pjPath, options, config) => {
 			if (cache[fileRelPath]) { return cache[fileRelPath]; }
 
 			const filePath = path.join(basePath, fileRelPath);
-			const fileContent = util.readFile(filePath);
+			let fileContent = util.readFile(filePath);
 			const result = {
 				tpl: [ ],
 				headjs: [ ],
@@ -192,46 +192,54 @@ module.exports = (pjPath, options, config) => {
 			};
 			const reAssetList = /\{{2,3}#?\s*(headjs|css|js|modjs)\s*\(([\W\w]*?)\)/g;
 			const reAssetItem = /(["'])(.+?)\1/g;
-			
-			let assetType;
-			let assetPath;
-			let match;
-			let subMatch;
+
 			// 分析静态资源依赖
-			while (match = reAssetList.exec(fileContent)) {
-				assetType = match[1];
-				while (subMatch = reAssetItem.exec(match[2])) {
+			fileContent = fileContent.replace(reAssetList, (match, assetType, assetItems) => {
+				let subMatch;
+				let subResult;
+				let assetPath;
+				const replacement = [];
+
+				while (subMatch = reAssetItem.exec(assetItems)) {
 					assetPath = subMatch[2];
 					// 不处理外链资源
 					if (util.isURL(assetPath)) { continue; }
 
 					assetPath = getRelPath(parsePath(assetPath), filePath, assetType);
 
+					subResult = assetParsers.parse(assetPath, assetType);
+
+					// 分离JS中引用的模板
+					if (assetType === 'modjs') {
+						subResult = subResult.filter((item) => {
+							if (/\.xtpl$/i.test(item)) {
+								replacement.push(
+									'{{ include(' + JSON.stringify(item + '?csrOnly') + ') }}'
+								);
+								return false;
+							} else {
+								return true;
+							}
+						});
+					}
+
 					// 自身
 					result[assetType].push(assetPath);
 					// 依赖
-					result[assetType] = result[assetType].concat(
-						assetParsers.parse(assetPath, assetType)
-					);
+					result[assetType] = result[assetType].concat(subResult);
 				}
-			}
 
-			// 分析模板依赖
-			const reDepTpl = /\{{2,3}\s*(?:extend|parse|include|includeOnce)\s*\(\s*(['"])(.+?)\1/g;
+				replacement.push(match);
 
-			let depTpl;
-			let depResult;
-			let isCSR;
-			while (match = reDepTpl.exec(fileContent)) {
-				isCSR = false;
-				depTpl = match[2].replace(/\?(.*)$/, (match, param) => {
-					isCSR = /^csr(?:Only)?$/.test(param);
-					return '';
-				});
+				return replacement.join('\n');
+			});
+
+			// 添加模板依赖
+			const addTplDep = (depTpl, filePath, isCSR) => {
 				depTpl = getRelPath(depTpl, filePath, 'xtpl');
 
 				// 递归调用获取所有依赖
-				depResult = this.parse(depTpl);
+				const depResult = this.parse(depTpl);
 				// 自身
 				result.tpl.push(depTpl);
 				// 依赖
@@ -244,6 +252,23 @@ module.exports = (pjPath, options, config) => {
 					});
 					result.modjs.push(depTpl + '.js');
 				}
+			};
+
+			// 分析模板依赖
+			const reDepTpl = /\{{2,3}\s*(?:extend|parse|include|includeOnce)\s*\(\s*(['"])(.+?)\1/g;
+
+			let isCSR;
+			let match;
+			while (match = reDepTpl.exec(fileContent)) {
+				isCSR = false;
+				addTplDep(
+					match[2].replace(/\?(.*)$/, (match, query) => {
+						isCSR = /^csr(?:Only)?$/.test(query);
+						return '';
+					}),
+					filePath,
+					isCSR
+				);
 			}
 
 			Object.keys(result).forEach((key) => {
