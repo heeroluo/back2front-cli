@@ -297,7 +297,7 @@ gulp.task('build-js', () => {
 					'null,' +
 					'function(require, exports, module) { "use strict";' +
 						babel.transform(
-							content.replace(/\b_tpl\(/, 'require.resolve('),
+							content.replace(/\b_tpl\s*\(\s*((['"]).+?\1)\s*\)/g, 'require.resolve($1)'),
 							{
 								presets: [
 									['env', { modules: false }],
