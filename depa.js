@@ -64,15 +64,7 @@ module.exports = (pjPath, options, config) => {
 
 	// 数组去重复，主要用于去除重复的资源依赖
 	function uniqueArray(arr) {
-		const flags = { };
-		return arr.filter((item) => {
-			if (!item || flags[item]) {
-				return false;
-			} else {
-				flags[item] = true;
-				return true;
-			}
-		});
+		return [...new Set(arr)];
 	}
 
 
@@ -140,7 +132,15 @@ module.exports = (pjPath, options, config) => {
 
 		_cache: { },
 
-		parse(fileRelPath, type) {
+		parse(fileRelPath, type, counter) {
+			// 避免循环依赖导致无法完成依赖分析，限制最多60层依赖
+			counter = counter || 0;
+			if (counter > 60) {
+				return;
+			} else {
+				counter++;
+			}
+
 			const t = this;
 			const cache = t._cache;
 			const filePath = path.join(basePath, fileRelPath);
@@ -160,7 +160,7 @@ module.exports = (pjPath, options, config) => {
 				// 自身
 				result.push(dep);
 				// 依赖
-				result = result.concat(t.parse(dep, type));
+				result = result.concat(t.parse(dep, type, counter));
 			});
 
 			// 去重复
