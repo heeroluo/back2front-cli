@@ -267,7 +267,7 @@ gulp.task('build-tpl', function() {
 gulp.task('build-js', () => {
 	// 匹配普通JS
 	const jsFilter = gulpFilter((file) => {
-		return /\.raw\.js$/i.test(file.path);
+		return /\.raw\.js$/i.test(file.path) && !/\.preload\.raw\.js$/i.test(file.path);
 	}, {
 		restore: true
 	});
