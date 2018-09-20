@@ -106,9 +106,9 @@ gulp.task('depa', (callback) => {
 
 
 // 非代码文件加MD5戳
-gulp.task('md5-others', () => {
+gulp.task('md5-others', (cb) => {
 	var plainTextFilter = createPlainTextFilter();
-	return pump([
+	pump([
 		gulp.src([
 			srcGlobs('static', '**/*'),
 			'!' + srcGlobs('static', '**/*.js'),
@@ -125,7 +125,7 @@ gulp.task('md5-others', () => {
 			}
 		}),
 		gulpDest('static')
-	]);
+	], cb);
 });
 
 
@@ -144,7 +144,7 @@ gulp.task('load-postcss-config', (callback) => {
 
 
 // CSS构建
-gulp.task('build-styles', ['load-postcss-config', 'md5-others'], () => {
+gulp.task('build-styles', ['load-postcss-config', 'md5-others'], (cb) => {
 	// 把CSS文件中的相对路径转换为绝对路径
 	const inCSSURLPrefix = urlPrefixes[2];
 
@@ -174,7 +174,7 @@ gulp.task('build-styles', ['load-postcss-config', 'md5-others'], () => {
 		};
 	}
 
-	return pump([
+	pump([
 		gulp.src([
 			srcGlobs('static', '**/*.css'),
 			srcGlobs('static', '**/*.scss')
@@ -225,13 +225,13 @@ gulp.task('build-styles', ['load-postcss-config', 'md5-others'], () => {
 			}
 		}),
 		gulpDest('static')
-	]);
+	], cb);
 });
 
 
 // 构建模板（转成模块化js）
-gulp.task('build-tpl', function() {
-	return pump([
+gulp.task('build-tpl', (cb) => {
+	pump([
 		gulp.src([
 			srcGlobs('static', '**/*.xtpl'),
 			'!' + srcGlobs('static', '**/*.page.xtpl'),
@@ -259,12 +259,12 @@ gulp.task('build-tpl', function() {
 			}
 		}),
 		gulpDest('static')
-	]);
+	], cb);
 });
 
 
 // 构建普通js和模块化js
-gulp.task('build-js', () => {
+gulp.task('build-js', (cb) => {
 	// 匹配普通JS
 	const jsFilter = gulpFilter((file) => {
 		return /\.raw\.js$/i.test(file.path) && !/\.preload\.raw\.js$/i.test(file.path);
@@ -279,7 +279,7 @@ gulp.task('build-js', () => {
 		restore: true
 	});
 
-	return pump([
+	pump([
 		gulp.src(srcGlobs('static', '**/*.js')),
 		jsFilter,
 		gulpModify({
@@ -292,19 +292,26 @@ gulp.task('build-js', () => {
 		modjsFilter,
 		gulpModify({
             fileModifier(file, content) {
+				let code;
+				try {
+					code = babel.transform(
+						content.replace(/\b_tpl\s*\(\s*((['"]).+?\1)\s*\)/g, 'require.resolve($1)'),
+						{
+							presets: [
+								['env', { modules: false }],
+								'stage-2'
+							]
+						}
+					).code
+				} catch (e) {
+					e.fileName = file.path;
+					throw e;
+				}
 				return 'define(' +
 					toAssetPath(file) + ',' +
 					'null,' +
 					'function(require, exports, module) { "use strict";' +
-						babel.transform(
-							content.replace(/\b_tpl\s*\(\s*((['"]).+?\1)\s*\)/g, 'require.resolve($1)'),
-							{
-								presets: [
-									['env', { modules: false }],
-									'stage-2'
-								]
-							}
-						).code +
+						code +
 					'}' +
 				');';
 			}
@@ -317,7 +324,7 @@ gulp.task('build-js', () => {
 			}
 		}),
 		gulpDest('static')
-	]);
+	], cb);
 });
 
 
