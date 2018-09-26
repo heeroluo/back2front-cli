@@ -161,6 +161,13 @@ gulp.task('build-styles', ['load-postcss-config', 'md5-others'], (cb) => {
 				// 不对URL或Base64编码做处理
 				return match;
 			} else {
+				// 暂时移除路径后的参数部分
+				let extra = '';
+				origPath = origPath.replace(/[?#].*$/, (match) => {
+					extra = match;
+					return '';
+				});
+
 				// 计算出相对项目根目录的路径
 				let relPath = util.normalizeSlash(
 					path.relative(
@@ -169,7 +176,7 @@ gulp.task('build-styles', ['load-postcss-config', 'md5-others'], (cb) => {
 					)
 				);
 
-				return fn(quot + inCSSURLPrefix + md5Map[relPath] + quot);
+				return fn(quot + inCSSURLPrefix + md5Map[relPath] + extra + quot);
 			}
 		};
 	}
